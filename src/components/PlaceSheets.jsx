@@ -1,9 +1,21 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { I } from '../config.js';
 import Ic from './Icon.jsx';
 import { PlaceFields, VisitFields, PhotoPicker, newVisit } from './Forms.jsx';
 import { emptyPlaceForm, placeToForm } from '../lib/api.js';
 import { errMsg, fmtCoord } from '../lib/utils.js';
+
+/* Complète les champs encore vides avec une adresse trouvée par la recherche */
+function useFillFrom(prefill, setF, fields) {
+  useEffect(() => {
+    if (!prefill) return;
+    setF((f) => {
+      const n = { ...f };
+      fields.forEach(([k, v]) => { if (!String(n[k] || '').trim() && prefill[v]) n[k] = prefill[v]; });
+      return n;
+    });
+  }, [prefill]); // eslint-disable-line react-hooks/exhaustive-deps
+}
 
 function PositionRow({ pos, onMove }) {
   return (
@@ -15,13 +27,14 @@ function PositionRow({ pos, onMove }) {
 }
 
 /* Nouveau lieu. Reste monté (caché) pendant qu'on déplace le point, pour garder la saisie. */
-export function AddSheet({ pos, hidden, defaultWho, onClose, onMove, onSave }) {
+export function AddSheet({ pos, prefill, hidden, defaultWho, onClose, onMove, onSave }) {
   const [f, setF] = useState(emptyPlaceForm);
   const [tested, setTested] = useState(true);
   const [v, setV] = useState(() => newVisit(defaultWho));
   const [files, setFiles] = useState([]);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState('');
+  useFillFrom(prefill, setF, [['name', 'name'], ['address', 'address'], ['quartier', 'quartier']]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -60,10 +73,11 @@ export function AddSheet({ pos, hidden, defaultWho, onClose, onMove, onSave }) {
 }
 
 /* Modifier un lieu existant */
-export function EditSheet({ place, pos, hidden, onClose, onMove, onSave }) {
+export function EditSheet({ place, pos, prefill, hidden, onClose, onMove, onSave }) {
   const [f, setF] = useState(() => placeToForm(place));
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  useFillFrom(prefill, setF, [['address', 'address']]);
   const moved = pos.lat !== place.lat || pos.lng !== place.lng;
 
   const submit = async (e) => {

@@ -29,6 +29,8 @@ function toPlace(r) {
     desc: r.description || '',
     address: r.address || '',
     link: r.link || '',
+    price: r.price || null,
+    tags: r.tags || [],
     coverPath: r.cover_path,
     cover,
     photos,
@@ -46,12 +48,12 @@ export async function fetchPlaces() {
 }
 
 /* Formulaire -> colonnes */
-export const emptyPlaceForm = () => ({ name: '', cat: 'bouffe', quartier: '', season: 'toute', metroStation: '', metroLines: [], desc: '', address: '', link: '' });
+export const emptyPlaceForm = () => ({ name: '', cat: 'bouffe', quartier: '', season: 'toute', metroStation: '', metroLines: [], desc: '', address: '', link: '', price: null, tags: [] });
 
 export const placeToForm = (p) => ({
   name: p.name, cat: p.cat, quartier: p.quartier === 'Montréal' ? '' : p.quartier, season: p.season,
   metroStation: p.metro ? p.metro.station : '', metroLines: p.metro ? p.metro.lines.slice() : [],
-  desc: p.desc, address: p.address, link: p.link,
+  desc: p.desc, address: p.address, link: p.link, price: p.price, tags: p.tags.slice(),
 });
 
 const formToRow = (f) => ({
@@ -64,6 +66,8 @@ const formToRow = (f) => ({
   description: f.desc.trim(),
   address: f.address.trim() || null,
   link: f.link.trim() || null,
+  price: f.price || null,
+  tags: f.tags,
 });
 
 export async function createPlace(form, pos) {
@@ -135,5 +139,48 @@ export async function deletePhoto(place, photo) {
 
 export async function setCover(placeId, path) {
   const { error } = await supabase.from('places').update({ cover_path: path }).eq('id', placeId);
+  if (error) throw error;
+}
+
+/* ---------- Parcours ---------- */
+const missingTable = (e) => /relation .* does not exist|PGRST205|42P01|could not find the table/i.test(String((e && (e.message || e.code)) || ''));
+
+const toRoute = (r) => ({
+  id: r.id,
+  title: r.title,
+  desc: r.description || '',
+  stops: (r.route_stops || []).slice().sort((a, b) => a.position - b.position).map((s) => ({ placeId: s.place_id, note: s.note || '' })),
+});
+
+/* Renvoie null si la migration 003 n'a pas encore été exécutée */
+export async function fetchRoutes() {
+  const { data, error } = await supabase.from('routes').select('*, route_stops(*)').order('created_at', { ascending: false });
+  if (error) { if (missingTable(error)) return null; throw error; }
+  return data.map(toRoute);
+}
+
+export async function saveRoute(r) {
+  const row = { title: r.title.trim(), description: (r.desc || '').trim() };
+  let id = r.id;
+  if (id) {
+    const { error } = await supabase.from('routes').update(row).eq('id', id);
+    if (error) throw error;
+  } else {
+    const { data, error } = await supabase.from('routes').insert(row).select('id').single();
+    if (error) throw error;
+    id = data.id;
+  }
+  const { error: e1 } = await supabase.from('route_stops').delete().eq('route_id', id);
+  if (e1) throw e1;
+  if (r.stops.length) {
+    const { error: e2 } = await supabase.from('route_stops')
+      .insert(r.stops.map((s, i) => ({ route_id: id, place_id: s.placeId, position: i, note: (s.note || '').trim() })));
+    if (e2) throw e2;
+  }
+  return id;
+}
+
+export async function deleteRoute(id) {
+  const { error } = await supabase.from('routes').delete().eq('id', id);
   if (error) throw error;
 }

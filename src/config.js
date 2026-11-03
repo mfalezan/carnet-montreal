@@ -13,6 +13,21 @@ export const SEASONS = { toute: "Toute l'année", ete: "Plutôt l'été", hiver:
 
 export const LINES = { verte: '#008E4F', orange: '#F08123', jaune: '#FFE300', bleue: '#0083CA' };
 
+/* Prix indicatif */
+export const PRICES = { 1: '$', 2: '$$', 3: '$$$' };
+
+/* Étiquettes pratiques : ajoutez-en librement (la clé est stockée en base, le libellé peut changer) */
+export const TAGS = {
+  brunch: 'Brunch',
+  cafe: 'Café',
+  terrasse: 'Terrasse',
+  vege: 'Végé',
+  pluie: 'Par temps de pluie',
+  gratuit: 'Gratuit',
+  famille: 'En famille',
+  soir: 'En soirée',
+};
+
 /* Clés stockées en base : 'deux', 'm', 'a' (voir supabase/schema.sql). */
 export const WHO = { deux: 'À deux', m: 'Matthieu', a: 'Azéline' };
 
@@ -42,4 +57,7 @@ export const I = {
   image: 'M4 5h16v14H4zM4 16l5-5 4 4 2-2 5 5M15.5 9.5h.01',
   link: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
   logout: 'M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10',
+  up: 'M6 15l6-6 6 6', down: 'M6 9l6 6 6-6',
+  walk: 'M13 4.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0ZM9 21l2.5-7.5L14 16v5M7 12l2-4.5 3.5 1L15 12h3M11.5 13.5 9.5 8.5',
+  sliders: 'M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1M15 4v4M9 10v4M17 16v4',
 };

@@ -13,6 +13,7 @@ Nos adresses testées à Montréal, sur une carte. Web app installable sur tél�
 | Lieux | Carrousel synchronisé avec la carte, recherche, filtres (catégorie, coups de cœur, à faire), liste complète |
 | Fiche | Verdict, itinéraire Google Maps, infos métro / saison / adresse / lien, photos, historique des visites, partage d'un lien direct (`/?lieu=…`) |
 | Écriture | Ajout à sa position GPS ou en touchant la carte, modification (y compris déplacer le point), visites, photos multiples avec couverture, suppression |
+| Parcours | Listes ordonnées de lieux (« Un dimanche sur le Plateau »), affichées sur la carte avec étapes numérotées et tracé, itinéraire à pied, lien direct (`/?parcours=…`) |
 | Comptes | E-mail + mot de passe Supabase, écriture réservée aux comptes de la table `editors` |
 | Photos | Redimensionnées dans le téléphone avant envoi (1600 px + miniature 480 px), stockées dans Supabase Storage |
 
@@ -47,6 +48,17 @@ supabase/
 7. **Project Settings > API Keys** (ou le bouton **Connect**) : note l'**URL du projet** et la clé publique (**publishable key** `sb_publishable_…`, ou l'ancienne **anon key**). Jamais la clé secrète.
 
 > Pourquoi un mot de passe plutôt qu'un lien magique : sur iPhone, un lien reçu par e-mail s'ouvre dans Safari et non dans l'app installée, donc la connexion ne « tient » pas dans l'app. En plus, l'envoi d'e-mails intégré à Supabase est limité aux membres de l'équipe du projet. Le mot de passe évite ces deux soucis ; le gestionnaire de mots de passe du téléphone le retient.
+
+### Mettre à jour une base existante
+
+Quand une nouvelle version ajoute des colonnes ou des tables, un fichier apparaît dans `supabase/migrations/`. Exécute-le une fois dans **SQL Editor** (ils peuvent être relancés sans risque), **avant** de mettre la nouvelle version en ligne :
+
+| Fichier | Ajoute |
+|---|---|
+| `002_etiquettes_prix.sql` | prix ($ à $$$) et étiquettes des lieux |
+| `003_parcours.sql` | parcours à partager (tables `routes` et `route_stops`) |
+
+Une base créée directement avec la dernière version de `schema.sql` est déjà à jour.
 
 ## 2. Lancer en local
 

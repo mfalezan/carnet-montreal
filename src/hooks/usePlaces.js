@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { fetchPlaces } from '../lib/api.js';
 
-const CACHE_KEY = 'carnet-mtl-cache-v1';
+const CACHE_KEY = 'carnet-mtl-cache-v2'; // à changer quand la forme des lieux change
 const readCache = () => { try { const v = localStorage.getItem(CACHE_KEY); return v ? JSON.parse(v) : null; } catch (e) { return null; } };
 const writeCache = (v) => { try { localStorage.setItem(CACHE_KEY, JSON.stringify(v)); } catch (e) { /* stockage plein ou bloqué */ } };
 

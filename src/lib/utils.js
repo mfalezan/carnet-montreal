@@ -22,6 +22,16 @@ export const reduceMotion = () => window.matchMedia && window.matchMedia('(prefe
 export const gmapsUrl = (p) => 'https://www.google.com/maps/dir/?api=1&destination=' + p.lat + ',' + p.lng;
 
 export const placeUrl = (p) => window.location.origin + '/?lieu=' + encodeURIComponent(p.id);
+export const routeUrl = (r) => window.location.origin + '/?parcours=' + encodeURIComponent(r.id);
+
+/* Itinéraire à pied Google Maps qui passe par les étapes (10 au plus) */
+export const gmapsRouteUrl = (stops) => {
+  const pts = stops.slice(0, 10).map((p) => p.lat + ',' + p.lng);
+  if (!pts.length) return null;
+  const q = { api: '1', destination: pts[pts.length - 1], travelmode: 'walking' };
+  if (pts.length > 1) { q.origin = pts[0]; if (pts.length > 2) q.waypoints = pts.slice(1, -1).join('|'); }
+  return 'https://www.google.com/maps/dir/?' + new URLSearchParams(q).toString();
+};
 
 export const safeLink = (u) => {
   if (!u) return null;
@@ -34,6 +44,8 @@ export const safeLink = (u) => {
 /* Message d'erreur lisible pour les erreurs Supabase / réseau */
 export function errMsg(e) {
   const m = String((e && (e.message || e.error_description || e.error)) || e || '');
+  if (/column .*(does not exist|in the schema cache)|PGRST204|42703/i.test(m)) return "La base n'est pas à jour : exécutez la dernière migration de supabase/migrations dans Supabase.";
+  if (/relation .* does not exist|PGRST205|42P01/i.test(m)) return "La base n'est pas à jour : exécutez la dernière migration de supabase/migrations dans Supabase.";
   if (/failed to fetch|network|load failed/i.test(m)) return 'Pas de connexion internet, réessayez.';
   if (/row-level security|permission denied|42501|unauthorized|403/i.test(m)) return 'Action réservée à Matthieu et Azéline.';
   if (/invalid login credentials/i.test(m)) return 'E-mail ou mot de passe incorrect.';
