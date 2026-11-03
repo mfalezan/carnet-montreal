@@ -42,8 +42,8 @@ function applyTheme(map) {
 const svgIcon = (d, size) =>
   `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
 
-const pinHtml = (cat, cls, size, label) =>
-  `<span class="pin ${cls}" style="--c:${catColor(cat)};width:${size}px;height:${size}px">${svgIcon(I[cat] || I.pin, Math.round(size * 0.5))}</span>` +
+const pinHtml = (cat, cls, size, label, num) =>
+  `<span class="pin ${cls}${num ? ' num' : ''}" style="--c:${catColor(cat)};width:${size}px;height:${size}px">${num ? '<b>' + num + '</b>' : svgIcon(I[cat] || I.pin, Math.round(size * 0.5))}</span>` +
   (label ? `<span class="mk-label">${esc(label)}</span>` : '');
 
 /* Pastille d'un groupe de lieux : taille selon le nombre */
@@ -56,7 +56,7 @@ const clusterHtml = (n) => {
 const CLUSTER_RADIUS = 56;
 const CLUSTER_MAX_ZOOM = 15;
 
-export default function MapView({ places, selId, onPin, picking, draft, onPlace, apiRef, onToast, onLocate, me }) {
+export default function MapView({ places, selId, onPin, picking, draft, onPlace, apiRef, onToast, onLocate, me, numbers }) {
   const ref = useRef(null), mapRef = useRef(null), markers = useRef({}), draftMk = useRef(null), meMk = useRef(null);
   const [err, setErr] = useState('');
   const [view, setView] = useState(0); // incrémenté à chaque déplacement de la carte
@@ -83,6 +83,13 @@ export default function MapView({ places, selId, onPin, picking, draft, onPlace,
     mapRef.current = map;
     apiRef.current = {
       flyTo: (lat, lng, z) => map.flyTo({ center: [lng, lat], zoom: z || Math.max(map.getZoom(), 14.3), offset: [0, -70], duration: reduceMotion() ? 0 : 800, essential: true }),
+      fitTo: (pts) => {
+        if (!pts.length) return;
+        if (pts.length === 1) { map.flyTo({ center: [pts[0].lng, pts[0].lat], zoom: 15, duration: reduceMotion() ? 0 : 800 }); return; }
+        const b = new maplibregl.LngLatBounds();
+        pts.forEach((p) => b.extend([p.lng, p.lat]));
+        map.fitBounds(b, { padding: { top: 150, bottom: 200, left: 50, right: 50 }, maxZoom: 15.5, duration: reduceMotion() ? 0 : 800 });
+      },
       zoomIn: () => map.zoomIn(),
       zoomOut: () => map.zoomOut(),
       locate: () => {
@@ -95,12 +102,12 @@ export default function MapView({ places, selId, onPin, picking, draft, onPlace,
 
   /* Index de regroupement (le lieu sélectionné reste toujours visible à part) */
   const index = useMemo(() => {
-    const sc = new Supercluster({ radius: CLUSTER_RADIUS, maxZoom: CLUSTER_MAX_ZOOM });
+    const sc = new Supercluster({ radius: numbers ? 0 : CLUSTER_RADIUS, maxZoom: CLUSTER_MAX_ZOOM });
     sc.load(places.filter((p) => p.id !== selId).map((p) => ({
       type: 'Feature', geometry: { type: 'Point', coordinates: [p.lng, p.lat] }, properties: { id: p.id },
     })));
     return sc;
-  }, [places, selId]);
+  }, [places, selId, numbers]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -146,7 +153,8 @@ export default function MapView({ places, selId, onPin, picking, draft, onPlace,
         const p = w.p, isSel = p.id === selId, done = p.visits.length > 0;
         el._hit = { kind: 'place', id: p.id };
         el.setAttribute('aria-label', p.name);
-        const html = pinHtml(p.cat, (done ? '' : 'todo') + (isSel ? ' sel' : ''), isSel ? 42 : 32, isSel ? p.name : '');
+        const num = numbers ? numbers[p.id] : null;
+        const html = pinHtml(p.cat, (done ? '' : 'todo') + (isSel ? ' sel' : ''), isSel ? 42 : num ? 34 : 32, isSel ? p.name : '', num);
         if (el._html !== html) { el.innerHTML = html; el._html = html; }
         el.style.zIndex = isSel ? '5' : '1';
         m.setLngLat([p.lng, p.lat]);
@@ -162,7 +170,26 @@ export default function MapView({ places, selId, onPin, picking, draft, onPlace,
     Object.keys(markers.current).forEach((k) => {
       if (!keep.has(k)) { markers.current[k].remove(); delete markers.current[k]; }
     });
-  }, [index, places, selId, view]);
+  }, [index, places, selId, view, numbers]);
+
+  /* Tracé d'un parcours : ligne pointillée entre les étapes, dans l'ordre */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return undefined;
+    const coords = numbers
+      ? places.filter((p) => numbers[p.id]).sort((a, b) => numbers[a.id] - numbers[b.id]).map((p) => [p.lng, p.lat])
+      : [];
+    const data = { type: 'FeatureCollection', features: coords.length > 1 ? [{ type: 'Feature', geometry: { type: 'LineString', coordinates: coords }, properties: {} }] : [] };
+    const apply = () => {
+      const src = map.getSource('route-line');
+      if (src) { src.setData(data); return; }
+      map.addSource('route-line', { type: 'geojson', data });
+      map.addLayer({ id: 'route-line', type: 'line', source: 'route-line', layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': '#E4572E', 'line-width': 3.5, 'line-opacity': 0.85, 'line-dasharray': [1.2, 1.6] } });
+    };
+    if (map.isStyleLoaded()) apply(); else map.once('load', apply);
+    return () => map.off('load', apply);
+  }, [places, numbers]);
 
   useEffect(() => {
     const map = mapRef.current;

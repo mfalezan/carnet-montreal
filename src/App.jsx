@@ -8,6 +8,8 @@ import LoginSheet from './components/LoginSheet.jsx';
 import { AddSheet, EditSheet } from './components/PlaceSheets.jsx';
 import AddressSearch from './components/AddressSearch.jsx';
 import FilterPanel, { emptyMore, countMore } from './components/FilterPanel.jsx';
+import { RouteSheet, RouteEditSheet, routeStops } from './components/RouteSheets.jsx';
+import { useRoutes } from './hooks/useRoutes.js';
 import { useAuth } from './hooks/useAuth.js';
 import { usePlaces } from './hooks/usePlaces.js';
 import { usePosition } from './hooks/usePosition.js';
@@ -21,6 +23,7 @@ export default function App() {
   const auth = useAuth();
   const { places, loading, error, reload } = usePlaces();
   const refresh = () => reload().catch(() => {});
+  const rt = useRoutes();
   const me = usePosition();
   const [nearby, setNearby] = useState(false);
   const placesD = useMemo(() => (me.pos ? places.map((p) => ({ ...p, dist: distance(me.pos, p) })) : places), [places, me.pos]);
@@ -39,13 +42,22 @@ export default function App() {
     && more.tags.every((t) => p.tags.includes(t))
     && (flag === 'all' || (flag === 'todo' ? !p.visits.length : p.visits.some((v) => v.love)))
     && (!nq || norm([p.name, p.quartier, p.desc, (CATS[p.cat] || {}).label, ...p.tags.map((t) => TAGS[t] || t), p.metro && p.metro.station, ...p.visits.map((v) => v.note)].join(' ')).includes(nq)));
-  const visible = nearby && me.pos ? filtered.slice().sort((a, b) => a.dist - b.dist) : filtered;
+  /* Parcours affiché sur la carte : ses étapes remplacent les filtres */
+  const [routeId, setRouteId] = useState(null);
+  const viewRoute = routeId ? rt.routes.find((r) => r.id === routeId) : null;
+  const routePlaces = useMemo(() => (viewRoute ? routeStops(viewRoute, placesD) : null), [viewRoute, placesD]);
+  const numbers = useMemo(() => {
+    if (!routePlaces) return null;
+    const m = {}; routePlaces.forEach((p) => { m[p.id] = p.n; }); return m;
+  }, [routePlaces]);
+  const visible = routePlaces || (nearby && me.pos ? filtered.slice().sort((a, b) => a.dist - b.dist) : filtered);
   const toggle = (cur, val, set) => set(cur === val ? 'all' : val);
 
   /* ---------- État de l'écran ---------- */
   const [selId, setSelId] = useState(null);
   const selRef = useRef(null); selRef.current = selId;
-  const [sheet, setSheet] = useState(null);     // { t: 'list' | 'detail' | 'login', id? }
+  const [sheet, setSheet] = useState(null);     // { t: 'list' | 'detail' | 'login' | 'route' | 'routeEdit', id? }
+  const [listTab, setListTab] = useState('places');
   const [flow, setFlow] = useState(null);       // { kind: 'add' } | { kind: 'edit', id }
   const [draft, setDraft] = useState(null);     // position en cours de saisie
   const [picking, setPicking] = useState(false); // la carte attend un toucher
@@ -102,26 +114,67 @@ export default function App() {
     }
   };
 
-  /* ---------- Lien partagé : /?lieu=<id> ---------- */
-  const [initialLink] = useState(() => new URLSearchParams(window.location.search).get('lieu'));
+  /* ---------- Liens partagés : /?lieu=<id> et /?parcours=<id> ---------- */
+  const [initialLink] = useState(() => {
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get('parcours')) return { kind: 'route', id: sp.get('parcours') };
+    if (sp.get('lieu')) return { kind: 'place', id: sp.get('lieu') };
+    return null;
+  });
   const linkDone = useRef(false);
   useEffect(() => {
-    if (linkDone.current || !initialLink || !places.length) return;
-    if (!places.some((p) => p.id === initialLink)) { if (!loading) linkDone.current = true; return; }
-    linkDone.current = true;
-    setTimeout(() => openDetail(initialLink), 250);
-  }, [places, loading]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (linkDone.current || !initialLink) return;
+    if (initialLink.kind === 'place') {
+      if (!places.length) return;
+      if (!places.some((p) => p.id === initialLink.id)) { if (!loading) linkDone.current = true; return; }
+      linkDone.current = true;
+      setTimeout(() => openDetail(initialLink.id), 250);
+    } else {
+      if (!places.length || !rt.routes.some((r) => r.id === initialLink.id)) { if (!loading && rt.routes.length) linkDone.current = true; return; }
+      linkDone.current = true;
+      setTimeout(() => setSheet({ t: 'route', id: initialLink.id }), 250);
+    }
+  }, [places, loading, rt.routes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (initialLink && !linkDone.current) return; // ne pas effacer le lien avant de l'avoir ouvert
-    const id = sheet && sheet.t === 'detail' ? sheet.id : null;
     const url = new URL(window.location.href);
-    if (id) url.searchParams.set('lieu', id); else url.searchParams.delete('lieu');
+    url.searchParams.delete('lieu'); url.searchParams.delete('parcours');
+    if (sheet && sheet.t === 'detail') url.searchParams.set('lieu', sheet.id);
+    else if (sheet && sheet.t === 'route') url.searchParams.set('parcours', sheet.id);
+    else if (routeId) url.searchParams.set('parcours', routeId);
     window.history.replaceState(null, '', url.pathname + url.search);
-  }, [sheet, initialLink]);
+  }, [sheet, initialLink, routeId]);
+
+  /* ---------- Parcours ---------- */
+  const showRoute = (id) => {
+    const r = rt.routes.find((x) => x.id === id);
+    if (!r) return;
+    const stops = routeStops(r, placesRef.current);
+    setSheet(null); setMoreOpen(false); setSelId(null); setRouteId(id);
+    setTimeout(() => {
+      if (mapApi.current) mapApi.current.fitTo(stops);
+      if (carRef.current) carRef.current.scrollTo({ left: 0 });
+    }, 60);
+  };
+  const exitRoute = () => { setRouteId(null); setSelId(null); };
+  const saveRoute = async (r) => {
+    const id = await api.saveRoute(r);
+    await rt.reload().catch(() => {});
+    setSheet({ t: 'route', id });
+    toast(r.id ? 'Parcours modifié' : 'Parcours créé');
+  };
+  const removeRoute = async (id) => {
+    await api.deleteRoute(id);
+    await rt.reload().catch(() => {});
+    if (routeId === id) exitRoute();
+    setListTab('routes');
+    setSheet({ t: 'list' });
+    toast('Parcours supprimé');
+  };
 
   /* ---------- Ajout / modification d'un lieu ---------- */
-  const startAdd = () => { setSheet(null); setSelId(null); setDraft(null); setFlow({ kind: 'add' }); setPicking(true); };
+  const startAdd = () => { setRouteId(null); setSheet(null); setSelId(null); setDraft(null); setFlow({ kind: 'add' }); setPicking(true); };
   const openEdit = (id) => {
     const p = placesRef.current.find((x) => x.id === id);
     if (!p) return;
@@ -184,7 +237,7 @@ export default function App() {
       uploadPhotos: async (id, files, onProgress) => { try { await api.uploadPhotos(id, files, onProgress); } finally { await again(); } },
       deletePhoto: async (p, ph) => { await api.deletePhoto(p, ph); await again(); },
       setCover: async (id, path) => { await api.setCover(id, path); await again(); },
-      deletePlace: async (p) => { await api.deletePlace(p); setSheet(null); setSelId(null); await again(); },
+      deletePlace: async (p) => { await api.deletePlace(p); setSheet(null); setSelId(null); await again(); rt.reload().catch(() => {}); },
     };
   }, [reload]);
 
@@ -197,6 +250,7 @@ export default function App() {
       if (e.key !== 'Escape') return;
       if (flow) { if (picking) backFromPicking(); else cancelFlow(); }
       else if (sheet) setSheet(null);
+      else if (routeId) exitRoute();
     };
     window.addEventListener('keydown', fn);
     return () => window.removeEventListener('keydown', fn);
@@ -212,6 +266,7 @@ export default function App() {
       const loved = p.visits.some((v) => v.love);
       return (
         <button type="button" key={p.id} data-id={p.id} className="card" aria-current={p.id === selId} onClick={() => openDetail(p.id)}>
+          {p.n && <span className="stop-n" style={{ '--c': catColor(p.cat) }} aria-label={'Étape ' + p.n}>{p.n}</span>}
           <span className="thumb" style={{ '--c': catColor(p.cat) }}>
             {p.cover ? <img src={p.cover.thumb} alt="" loading="lazy" /> : <Ic d={I[p.cat]} size={40} sw={1.8} />}
           </span>
@@ -228,6 +283,8 @@ export default function App() {
         </button>
       );
     });
+  } else if (routePlaces) {
+    carouselBody = <div className="card empty">Ce parcours n'a pas encore d'étape.</div>;
   } else if (!places.length && loading) {
     carouselBody = <div className="card empty">Chargement du carnet…</div>;
   } else if (!places.length && error) {
@@ -259,9 +316,19 @@ export default function App() {
 
       <div className={'stage' + (picking ? ' picking' : '')}>
         <MapView places={flow ? [] : visible} selId={selId} onPin={(id) => focus(id)} picking={picking} draft={draft}
-          onPlace={placeAt} apiRef={mapApi} onToast={toast} onLocate={me.update} me={nearby ? me.pos : null} />
+          onPlace={placeAt} apiRef={mapApi} onToast={toast} onLocate={me.update} me={nearby ? me.pos : null} numbers={numbers} />
 
-        {!flow && (
+        {!flow && viewRoute && (
+          <div className="float-top">
+            <div className="routebar">
+              <span className="routebar-t"><b>{viewRoute.title}</b><small>Parcours · {routePlaces.length} étape{routePlaces.length > 1 ? 's' : ''}</small></span>
+              <button type="button" className="chip" onClick={() => setSheet({ t: 'route', id: viewRoute.id })}>Détails</button>
+              <button type="button" className="circle" aria-label="Quitter le parcours" onClick={exitRoute}><Ic d={I.close} /></button>
+            </div>
+          </div>
+        )}
+
+        {!flow && !viewRoute && (
           <div className="float-top">
             <div className="searchrow">
               <label className="search"><Ic d={I.search} />
@@ -311,9 +378,23 @@ export default function App() {
       </div>
 
       {sheet && sheet.t === 'list' && (
-        <ListSheet places={visible} total={places.length} auth={auth} onClose={() => setSheet(null)}
+        <ListSheet places={routePlaces ? filtered : visible} allPlaces={placesD} total={places.length} auth={auth} onClose={() => setSheet(null)}
           onLogin={() => setSheet({ t: 'login' })}
-          onPick={(id) => { setSheet(null); focus(id); setTimeout(() => scrollToCard(id), 60); }} />
+          tab={listTab} setTab={setListTab} routes={rt.routes} routesAvailable={rt.available}
+          onPickRoute={(id) => setSheet({ t: 'route', id })} onNewRoute={() => setSheet({ t: 'routeEdit' })}
+          onPick={(id) => { setSheet(null); setRouteId(null); focus(id); setTimeout(() => scrollToCard(id), 60); }} />
+      )}
+      {sheet && sheet.t === 'route' && rt.routes.find((r) => r.id === sheet.id) && (
+        <RouteSheet key={sheet.id} route={rt.routes.find((r) => r.id === sheet.id)} places={placesD} isEditor={auth.isEditor} toast={toast}
+          onClose={() => { if (routeId === sheet.id) setSheet(null); else { setListTab('routes'); setSheet({ t: 'list' }); } }}
+          onShowMap={() => showRoute(sheet.id)}
+          onPick={(id) => { const rid = sheet.id; if (routeId !== rid) setRouteId(rid); openDetail(id); }}
+          onEdit={() => setSheet({ t: 'routeEdit', id: sheet.id })} />
+      )}
+      {sheet && sheet.t === 'routeEdit' && auth.isEditor && (
+        <RouteEditSheet key={sheet.id || 'new'} route={sheet.id ? rt.routes.find((r) => r.id === sheet.id) : null} places={places}
+          onClose={() => (sheet.id ? setSheet({ t: 'route', id: sheet.id }) : (setListTab('routes'), setSheet({ t: 'list' })))}
+          onSave={saveRoute} onDelete={removeRoute} />
       )}
       {sheet && sheet.t === 'login' && <LoginSheet auth={auth} toast={toast} onClose={() => setSheet(null)} />}
       {detail && (

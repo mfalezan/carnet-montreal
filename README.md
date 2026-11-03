@@ -13,6 +13,7 @@ Nos adresses testées à Montréal, sur une carte. Web app installable sur tél�
 | Lieux | Carrousel synchronisé avec la carte, recherche, filtres (catégorie, coups de cœur, à faire), liste complète |
 | Fiche | Verdict, itinéraire Google Maps, infos métro / saison / adresse / lien, photos, historique des visites, partage d'un lien direct (`/?lieu=…`) |
 | Écriture | Ajout à sa position GPS ou en touchant la carte, modification (y compris déplacer le point), visites, photos multiples avec couverture, suppression |
+| Parcours | Listes ordonnées de lieux (« Un dimanche sur le Plateau »), affichées sur la carte avec étapes numérotées et tracé, itinéraire à pied, lien direct (`/?parcours=…`) |
 | Comptes | E-mail + mot de passe Supabase, écriture réservée aux comptes de la table `editors` |
 | Photos | Redimensionnées dans le téléphone avant envoi (1600 px + miniature 480 px), stockées dans Supabase Storage |
 
@@ -55,6 +56,7 @@ Quand une nouvelle version ajoute des colonnes ou des tables, un fichier appara�
 | Fichier | Ajoute |
 |---|---|
 | `002_etiquettes_prix.sql` | prix ($ à $$$) et étiquettes des lieux |
+| `003_parcours.sql` | parcours à partager (tables `routes` et `route_stops`) |
 
 Une base créée directement avec la dernière version de `schema.sql` est déjà à jour.
 

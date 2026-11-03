@@ -141,3 +141,46 @@ export async function setCover(placeId, path) {
   const { error } = await supabase.from('places').update({ cover_path: path }).eq('id', placeId);
   if (error) throw error;
 }
+
+/* ---------- Parcours ---------- */
+const missingTable = (e) => /relation .* does not exist|PGRST205|42P01|could not find the table/i.test(String((e && (e.message || e.code)) || ''));
+
+const toRoute = (r) => ({
+  id: r.id,
+  title: r.title,
+  desc: r.description || '',
+  stops: (r.route_stops || []).slice().sort((a, b) => a.position - b.position).map((s) => ({ placeId: s.place_id, note: s.note || '' })),
+});
+
+/* Renvoie null si la migration 003 n'a pas encore été exécutée */
+export async function fetchRoutes() {
+  const { data, error } = await supabase.from('routes').select('*, route_stops(*)').order('created_at', { ascending: false });
+  if (error) { if (missingTable(error)) return null; throw error; }
+  return data.map(toRoute);
+}
+
+export async function saveRoute(r) {
+  const row = { title: r.title.trim(), description: (r.desc || '').trim() };
+  let id = r.id;
+  if (id) {
+    const { error } = await supabase.from('routes').update(row).eq('id', id);
+    if (error) throw error;
+  } else {
+    const { data, error } = await supabase.from('routes').insert(row).select('id').single();
+    if (error) throw error;
+    id = data.id;
+  }
+  const { error: e1 } = await supabase.from('route_stops').delete().eq('route_id', id);
+  if (e1) throw e1;
+  if (r.stops.length) {
+    const { error: e2 } = await supabase.from('route_stops')
+      .insert(r.stops.map((s, i) => ({ route_id: id, place_id: s.placeId, position: i, note: (s.note || '').trim() })));
+    if (e2) throw e2;
+  }
+  return id;
+}
+
+export async function deleteRoute(id) {
+  const { error } = await supabase.from('routes').delete().eq('id', id);
+  if (error) throw error;
+}
