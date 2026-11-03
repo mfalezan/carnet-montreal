@@ -6,6 +6,7 @@ import DetailSheet from './components/DetailSheet.jsx';
 import ListSheet from './components/ListSheet.jsx';
 import LoginSheet from './components/LoginSheet.jsx';
 import { AddSheet, EditSheet } from './components/PlaceSheets.jsx';
+import AddressSearch from './components/AddressSearch.jsx';
 import { useAuth } from './hooks/useAuth.js';
 import { usePlaces } from './hooks/usePlaces.js';
 import * as api from './lib/api.js';
@@ -35,6 +36,7 @@ export default function App() {
   const [flow, setFlow] = useState(null);       // { kind: 'add' } | { kind: 'edit', id }
   const [draft, setDraft] = useState(null);     // position en cours de saisie
   const [picking, setPicking] = useState(false); // la carte attend un toucher
+  const [prefill, setPrefill] = useState(null);  // infos d'une adresse trouvée par la recherche
   const [toastMsg, setToastMsg] = useState('');
   const toastT = useRef(0);
   const toast = (m) => { setToastMsg(m); clearTimeout(toastT.current); toastT.current = setTimeout(() => setToastMsg(''), 2800); };
@@ -99,13 +101,18 @@ export default function App() {
     if (!p) return;
     setSheet(null); setFlow({ kind: 'edit', id }); setDraft({ lat: p.lat, lng: p.lng }); setPicking(false);
   };
-  const endFlow = () => { setFlow(null); setDraft(null); setPicking(false); };
+  const endFlow = () => { setFlow(null); setDraft(null); setPicking(false); setPrefill(null); };
   const cancelFlow = () => {
     const f = flow;
     endFlow();
     if (f && f.kind === 'edit') setSheet({ t: 'detail', id: f.id });
   };
   const placeAt = (pos) => { setDraft(pos); setPicking(false); };
+  const pickAddress = (r) => {
+    if (mapApi.current) mapApi.current.flyTo(r.lat, r.lng, 16);
+    setPrefill({ ...r, at: Date.now() });
+    placeAt({ lat: r.lat, lng: r.lng });
+  };
   const backFromPicking = () => { if (draft) setPicking(false); else cancelFlow(); };
   const useMyPosition = () => {
     if (!navigator.geolocation) { toast('Localisation indisponible : touchez la carte'); return; }
@@ -250,7 +257,7 @@ export default function App() {
           </div>
         )}
 
-        {picking && <div className="hint">Touchez la carte à l'endroit du lieu</div>}
+        {picking && <div className="hint">Cherchez le lieu ou touchez la carte</div>}
 
         <div className="ctrls">
           <button className="circle" type="button" aria-label="Zoomer" onClick={() => mapApi.current && mapApi.current.zoomIn()}><Ic d={I.plus} /></button>
@@ -262,7 +269,8 @@ export default function App() {
 
         {picking && (
           <div className="placebar">
-            <p><strong>{flow && flow.kind === 'edit' ? 'Nouvelle position ?' : 'Où se trouve le lieu ?'}</strong> Touchez la carte, ou utilisez votre position si vous y êtes.</p>
+            <p><strong>{flow && flow.kind === 'edit' ? 'Nouvelle position ?' : 'Où se trouve le lieu ?'}</strong> Cherchez-le, touchez la carte, ou utilisez votre position si vous y êtes.</p>
+            <AddressSearch onPick={pickAddress} />
             <button className="pill" type="button" onClick={useMyPosition}><Ic d={I.locate} /> Utiliser ma position</button>
             <button className="pill ghost" type="button" onClick={backFromPicking}>{draft ? 'Revenir au formulaire' : 'Annuler'}</button>
           </div>
@@ -280,10 +288,10 @@ export default function App() {
           onClose={() => closeDetail(detail.id)} onEdit={() => openEdit(detail.id)} />
       )}
       {flow && flow.kind === 'add' && draft && (
-        <AddSheet pos={draft} hidden={picking} defaultWho={DEFAULT_WHO} onClose={cancelFlow} onMove={() => setPicking(true)} onSave={saveNewPlace} />
+        <AddSheet pos={draft} prefill={prefill} hidden={picking} defaultWho={DEFAULT_WHO} onClose={cancelFlow} onMove={() => setPicking(true)} onSave={saveNewPlace} />
       )}
       {editPlace && draft && (
-        <EditSheet key={editPlace.id} place={editPlace} pos={draft} hidden={picking} onClose={cancelFlow} onMove={() => setPicking(true)} onSave={saveEdit} />
+        <EditSheet key={editPlace.id} place={editPlace} pos={draft} prefill={prefill} hidden={picking} onClose={cancelFlow} onMove={() => setPicking(true)} onSave={saveEdit} />
       )}
       {toastMsg && <div className="toast" role="status">{toastMsg}</div>}
     </div>

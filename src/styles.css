@@ -204,4 +204,17 @@ code{font-size:.92em;background:var(--tan-soft);padding:1px 5px;border-radius:5p
 /* Écran de configuration */
 .setup{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:24px}
 .setup pre{background:var(--tan-soft);padding:12px 14px;border-radius:12px;overflow-x:auto;font-size:14px}
-.stage.picking .ctrls{bottom:calc(236px + env(safe-area-inset-bottom,0px))}
+.stage.picking .ctrls{bottom:calc(300px + env(safe-area-inset-bottom,0px))}
+
+/* Recherche d'adresse (ajout d'un lieu) */
+.addr{position:relative}
+.addr-input{box-shadow:none;height:50px}
+.addr-list{position:absolute;left:0;right:0;bottom:calc(100% + 8px);list-style:none;margin:0;padding:6px;background:var(--paper);border:1.5px solid var(--tan);border-radius:18px;box-shadow:0 8px 24px rgb(58 45 33 / .18);max-height:46vh;overflow-y:auto;z-index:4}
+.addr-item{width:100%;display:flex;gap:10px;align-items:flex-start;text-align:left;border:0;background:none;padding:10px;border-radius:12px;cursor:pointer;color:var(--ink)}
+.addr-item:hover,.addr-item:focus-visible{background:var(--tan-soft)}
+.addr-item svg{flex:none;margin-top:2px;color:var(--accent)}
+.addr-item strong{display:block;font-weight:700}
+.addr-item small{display:block;color:var(--muted);font-size:13px}
+.addr-msg{padding:10px;color:var(--muted);font-size:14px}
+.addr-spin{width:18px;height:18px;border-radius:50%;border:2.5px solid var(--tan);border-top-color:var(--accent);animation:spin .8s linear infinite;flex:none}
+@keyframes spin{to{transform:rotate(360deg)}}
