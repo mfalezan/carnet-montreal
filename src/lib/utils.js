@@ -34,6 +34,8 @@ export const safeLink = (u) => {
 /* Message d'erreur lisible pour les erreurs Supabase / réseau */
 export function errMsg(e) {
   const m = String((e && (e.message || e.error_description || e.error)) || e || '');
+  if (/column .*(does not exist|in the schema cache)|PGRST204|42703/i.test(m)) return "La base n'est pas à jour : exécutez la dernière migration de supabase/migrations dans Supabase.";
+  if (/relation .* does not exist|PGRST205|42P01/i.test(m)) return "La base n'est pas à jour : exécutez la dernière migration de supabase/migrations dans Supabase.";
   if (/failed to fetch|network|load failed/i.test(m)) return 'Pas de connexion internet, réessayez.';
   if (/row-level security|permission denied|42501|unauthorized|403/i.test(m)) return 'Action réservée à Matthieu et Azéline.';
   if (/invalid login credentials/i.test(m)) return 'E-mail ou mot de passe incorrect.';

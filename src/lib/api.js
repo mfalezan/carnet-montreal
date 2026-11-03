@@ -29,6 +29,8 @@ function toPlace(r) {
     desc: r.description || '',
     address: r.address || '',
     link: r.link || '',
+    price: r.price || null,
+    tags: r.tags || [],
     coverPath: r.cover_path,
     cover,
     photos,
@@ -46,12 +48,12 @@ export async function fetchPlaces() {
 }
 
 /* Formulaire -> colonnes */
-export const emptyPlaceForm = () => ({ name: '', cat: 'bouffe', quartier: '', season: 'toute', metroStation: '', metroLines: [], desc: '', address: '', link: '' });
+export const emptyPlaceForm = () => ({ name: '', cat: 'bouffe', quartier: '', season: 'toute', metroStation: '', metroLines: [], desc: '', address: '', link: '', price: null, tags: [] });
 
 export const placeToForm = (p) => ({
   name: p.name, cat: p.cat, quartier: p.quartier === 'Montréal' ? '' : p.quartier, season: p.season,
   metroStation: p.metro ? p.metro.station : '', metroLines: p.metro ? p.metro.lines.slice() : [],
-  desc: p.desc, address: p.address, link: p.link,
+  desc: p.desc, address: p.address, link: p.link, price: p.price, tags: p.tags.slice(),
 });
 
 const formToRow = (f) => ({
@@ -64,6 +66,8 @@ const formToRow = (f) => ({
   description: f.desc.trim(),
   address: f.address.trim() || null,
   link: f.link.trim() || null,
+  price: f.price || null,
+  tags: f.tags,
 });
 
 export async function createPlace(form, pos) {

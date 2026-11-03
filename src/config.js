@@ -13,6 +13,21 @@ export const SEASONS = { toute: "Toute l'année", ete: "Plutôt l'été", hiver:
 
 export const LINES = { verte: '#008E4F', orange: '#F08123', jaune: '#FFE300', bleue: '#0083CA' };
 
+/* Prix indicatif */
+export const PRICES = { 1: '$', 2: '$$', 3: '$$$' };
+
+/* Étiquettes pratiques : ajoutez-en librement (la clé est stockée en base, le libellé peut changer) */
+export const TAGS = {
+  brunch: 'Brunch',
+  cafe: 'Café',
+  terrasse: 'Terrasse',
+  vege: 'Végé',
+  pluie: 'Par temps de pluie',
+  gratuit: 'Gratuit',
+  famille: 'En famille',
+  soir: 'En soirée',
+};
+
 /* Clés stockées en base : 'deux', 'm', 'a' (voir supabase/schema.sql). */
 export const WHO = { deux: 'À deux', m: 'Matthieu', a: 'Azéline' };
 

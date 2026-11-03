@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CATS, catColor, I } from './config.js';
+import { CATS, catColor, I, PRICES, TAGS } from './config.js';
 import Ic from './components/Icon.jsx';
 import MapView from './components/MapView.jsx';
 import DetailSheet from './components/DetailSheet.jsx';
@@ -35,8 +35,10 @@ export default function App() {
   const nq = norm(q.trim());
   const filtered = placesD.filter((p) => (cat === 'all' || p.cat === cat)
     && (more.season === 'all' || p.season === more.season || p.season === 'toute')
+    && (!more.price.length || more.price.includes(p.price))
+    && more.tags.every((t) => p.tags.includes(t))
     && (flag === 'all' || (flag === 'todo' ? !p.visits.length : p.visits.some((v) => v.love)))
-    && (!nq || norm([p.name, p.quartier, p.desc, (CATS[p.cat] || {}).label, p.metro && p.metro.station, ...p.visits.map((v) => v.note)].join(' ')).includes(nq)));
+    && (!nq || norm([p.name, p.quartier, p.desc, (CATS[p.cat] || {}).label, ...p.tags.map((t) => TAGS[t] || t), p.metro && p.metro.station, ...p.visits.map((v) => v.note)].join(' ')).includes(nq)));
   const visible = nearby && me.pos ? filtered.slice().sort((a, b) => a.dist - b.dist) : filtered;
   const toggle = (cur, val, set) => set(cur === val ? 'all' : val);
 
@@ -215,7 +217,7 @@ export default function App() {
           </span>
           <span className="card-body">
             <span className="card-name">{p.name}</span>
-            <span className="card-meta">{(CATS[p.cat] || {}).label} · {p.quartier}</span>
+            <span className="card-meta">{(CATS[p.cat] || {}).label} · {p.quartier}{p.price ? ' · ' + PRICES[p.price] : ''}</span>
             <span className="card-status">
               {p.visits.length
                 ? <>{loved && <span className="heart"><Ic d={I.heart} size={16} fill /></span>}Testé {p.visits.length}×</>

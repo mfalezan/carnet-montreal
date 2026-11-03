@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo } from 'react';
-import { CATS, catColor, SEASONS, LINES, WHO, I } from '../config.js';
+import { CATS, catColor, SEASONS, LINES, WHO, I, PRICES, TAGS } from '../config.js';
 import Ic from './Icon.jsx';
 import { today } from '../lib/utils.js';
 
@@ -35,6 +35,7 @@ export function VisitFields({ v, set }) {
 
 export function PlaceFields({ f, set }) {
   const id = useId();
+  const toggleTag = (t) => set({ ...f, tags: f.tags.includes(t) ? f.tags.filter((x) => x !== t) : f.tags.concat([t]) });
   const toggleLine = (l) => set({ ...f, metroLines: f.metroLines.includes(l) ? f.metroLines.filter((x) => x !== l) : f.metroLines.concat([l]) });
   return (
     <>
@@ -49,6 +50,22 @@ export function PlaceFields({ f, set }) {
             <button type="button" key={k} className="chip" aria-pressed={f.cat === k} onClick={() => set({ ...f, cat: k })}>
               <span className="sw" style={{ '--c': catColor(k) }} />{c.label}
             </button>
+          ))}
+        </div>
+      </div>
+      <div className="field">
+        <span className="lbl">Prix</span>
+        <div className="opts">
+          {Object.entries(PRICES).map(([k, l]) => (
+            <button type="button" key={k} className="chip" aria-pressed={f.price === Number(k)} onClick={() => set({ ...f, price: f.price === Number(k) ? null : Number(k) })}>{l}</button>
+          ))}
+        </div>
+      </div>
+      <div className="field">
+        <span className="lbl">Étiquettes</span>
+        <div className="opts">
+          {Object.entries(TAGS).map(([k, l]) => (
+            <button type="button" key={k} className="chip" aria-pressed={f.tags.includes(k)} onClick={() => toggleTag(k)}>{l}</button>
           ))}
         </div>
       </div>

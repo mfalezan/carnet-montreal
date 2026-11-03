@@ -47,6 +47,8 @@ create table if not exists public.places (
   address       text,
   link          text,
   cover_path    text,                              -- photo de couverture (chemin dans le bucket)
+  price         smallint check (price between 1 and 3),   -- 1 = $, 2 = $$, 3 = $$$   (migration 002)
+  tags          text[] not null default '{}',             -- clés de TAGS dans src/config.js (migration 002)
   created_by    uuid default auth.uid() references auth.users(id) on delete set null,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now()
@@ -55,6 +57,9 @@ create table if not exists public.places (
 -- -----------------------------------------------------------------------------
 -- Visites : on peut revenir plusieurs fois au même lieu, chacun avec son avis
 -- -----------------------------------------------------------------------------
+-- Pour une base créée avant ces colonnes, voir supabase/migrations/002_etiquettes_prix.sql
+create index if not exists places_tags_idx on public.places using gin (tags);
+
 create table if not exists public.visits (
   id          uuid primary key default gen_random_uuid(),
   place_id    uuid not null references public.places(id) on delete cascade,

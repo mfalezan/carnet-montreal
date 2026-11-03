@@ -1,4 +1,4 @@
-import { CATS, catColor, I, WHO } from '../config.js';
+import { CATS, catColor, I, WHO, PRICES } from '../config.js';
 import Ic from './Icon.jsx';
 import { fmtDist } from '../lib/geo.js';
 
@@ -25,7 +25,7 @@ export default function ListSheet({ places, total, onPick, onClose, auth, onLogi
                   </span>
                   <span style={{ minWidth: 0 }}>
                     <span className="lname">{p.name}</span>
-                    <span className="lmeta">{(CATS[p.cat] || {}).label} · {p.quartier}{p.dist != null ? ' · ' + fmtDist(p.dist) : ''}</span>
+                    <span className="lmeta">{(CATS[p.cat] || {}).label} · {p.quartier}{p.price ? ' · ' + PRICES[p.price] : ''}{p.dist != null ? ' · ' + fmtDist(p.dist) : ''}</span>
                   </span>
                   {p.visits.length ? (
                     <span className="card-status" style={{ marginTop: 0 }}>

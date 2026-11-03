@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { CATS, catColor, SEASONS, LINES, WHO, I } from '../config.js';
+import { CATS, catColor, SEASONS, LINES, WHO, I, PRICES, TAGS } from '../config.js';
 import Ic from './Icon.jsx';
 import { VisitFields, newVisit } from './Forms.jsx';
 import { fmtDist } from '../lib/geo.js';
@@ -70,7 +70,7 @@ export default function DetailSheet({ p, isEditor, defaultWho, onClose, onEdit, 
         </div>
         {!p.cover && <span className="hero-mark"><Ic d={I[p.cat]} size={200} sw={1.6} /></span>}
         <h2>{p.name}</h2>
-        <p>{(CATS[p.cat] || {}).label} · {p.quartier}</p>
+        <p>{(CATS[p.cat] || {}).label} · {p.quartier}{p.price ? ' · ' + PRICES[p.price] : ''}</p>
       </header>
 
       <div className="content">
@@ -97,6 +97,11 @@ export default function DetailSheet({ p, isEditor, defaultWho, onClose, onEdit, 
 
         <h3 className="h-sec">Le lieu</h3>
         {p.desc && <p className="desc">{p.desc}</p>}
+        {p.tags.length > 0 && (
+          <ul className="tags" aria-label="Étiquettes">
+            {p.tags.map((t) => <li key={t}>{TAGS[t] || t}</li>)}
+          </ul>
+        )}
         <dl className="facts">
           {p.address && <><dt>Adresse</dt><dd>{p.address}</dd></>}
           <dt>Métro</dt>

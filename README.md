@@ -48,6 +48,16 @@ supabase/
 
 > Pourquoi un mot de passe plutôt qu'un lien magique : sur iPhone, un lien reçu par e-mail s'ouvre dans Safari et non dans l'app installée, donc la connexion ne « tient » pas dans l'app. En plus, l'envoi d'e-mails intégré à Supabase est limité aux membres de l'équipe du projet. Le mot de passe évite ces deux soucis ; le gestionnaire de mots de passe du téléphone le retient.
 
+### Mettre à jour une base existante
+
+Quand une nouvelle version ajoute des colonnes ou des tables, un fichier apparaît dans `supabase/migrations/`. Exécute-le une fois dans **SQL Editor** (ils peuvent être relancés sans risque), **avant** de mettre la nouvelle version en ligne :
+
+| Fichier | Ajoute |
+|---|---|
+| `002_etiquettes_prix.sql` | prix ($ à $$$) et étiquettes des lieux |
+
+Une base créée directement avec la dernière version de `schema.sql` est déjà à jour.
+
 ## 2. Lancer en local
 
 ```bash
