@@ -6,3 +6,6 @@ dev-dist
 .env.*.local
 .DS_Store
 .vercel
+
+# Fichiers ajoutés par Windows aux téléchargements
+*:Zone.Identifier
