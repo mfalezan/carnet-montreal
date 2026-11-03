@@ -9,6 +9,8 @@ import { AddSheet, EditSheet } from './components/PlaceSheets.jsx';
 import AddressSearch from './components/AddressSearch.jsx';
 import { useAuth } from './hooks/useAuth.js';
 import { usePlaces } from './hooks/usePlaces.js';
+import { usePosition } from './hooks/usePosition.js';
+import { distance, fmtDist } from './lib/geo.js';
 import * as api from './lib/api.js';
 import { errMsg, norm, reduceMotion } from './lib/utils.js';
 
@@ -18,15 +20,19 @@ export default function App() {
   const auth = useAuth();
   const { places, loading, error, reload } = usePlaces();
   const refresh = () => reload().catch(() => {});
+  const me = usePosition();
+  const [nearby, setNearby] = useState(false);
+  const placesD = useMemo(() => (me.pos ? places.map((p) => ({ ...p, dist: distance(me.pos, p) })) : places), [places, me.pos]);
 
   /* ---------- Recherche et filtres ---------- */
   const [q, setQ] = useState('');
   const [cat, setCat] = useState('all');
   const [flag, setFlag] = useState('all');
   const nq = norm(q.trim());
-  const visible = places.filter((p) => (cat === 'all' || p.cat === cat)
+  const filtered = placesD.filter((p) => (cat === 'all' || p.cat === cat)
     && (flag === 'all' || (flag === 'todo' ? !p.visits.length : p.visits.some((v) => v.love)))
     && (!nq || norm([p.name, p.quartier, p.desc, (CATS[p.cat] || {}).label, p.metro && p.metro.station, ...p.visits.map((v) => v.note)].join(' ')).includes(nq)));
+  const visible = nearby && me.pos ? filtered.slice().sort((a, b) => a.dist - b.dist) : filtered;
   const toggle = (cur, val, set) => set(cur === val ? 'all' : val);
 
   /* ---------- État de l'écran ---------- */
@@ -75,6 +81,19 @@ export default function App() {
   };
   const openDetail = (id) => { focus(id, { scroll: false }); setSheet({ t: 'detail', id }); };
   const closeDetail = (id) => { setSheet(null); setTimeout(() => scrollToCard(id), 60); };
+
+  /* ---------- Autour de moi ---------- */
+  const toggleNearby = async () => {
+    if (nearby) { setNearby(false); me.stop(); return; }
+    try {
+      const v = await me.start();
+      setNearby(true);
+      if (mapApi.current) mapApi.current.flyTo(v.lat, v.lng, 14.5);
+      if (carRef.current) carRef.current.scrollTo({ left: 0, behavior: reduceMotion() ? 'auto' : 'smooth' });
+    } catch (e) {
+      toast('Position indisponible : autorisez la localisation pour ce site');
+    }
+  };
 
   /* ---------- Lien partagé : /?lieu=<id> ---------- */
   const [initialLink] = useState(() => new URLSearchParams(window.location.search).get('lieu'));
@@ -176,7 +195,7 @@ export default function App() {
     return () => window.removeEventListener('keydown', fn);
   });
 
-  const detail = !flow && sheet && sheet.t === 'detail' ? places.find((p) => p.id === sheet.id) : null;
+  const detail = !flow && sheet && sheet.t === 'detail' ? placesD.find((p) => p.id === sheet.id) : null;
   const editPlace = flow && flow.kind === 'edit' ? places.find((p) => p.id === flow.id) : null;
 
   /* ---------- Rendu ---------- */
@@ -196,6 +215,7 @@ export default function App() {
               {p.visits.length
                 ? <>{loved && <span className="heart"><Ic d={I.heart} size={16} fill /></span>}Testé {p.visits.length}×</>
                 : <span className="todo-tag">À faire</span>}
+              {p.dist != null && <span className="dist">{fmtDist(p.dist)}</span>}
             </span>
           </span>
         </button>
@@ -232,7 +252,7 @@ export default function App() {
 
       <div className={'stage' + (picking ? ' picking' : '')}>
         <MapView places={flow ? [] : visible} selId={selId} onPin={(id) => focus(id)} picking={picking} draft={draft}
-          onPlace={placeAt} apiRef={mapApi} onToast={toast} />
+          onPlace={placeAt} apiRef={mapApi} onToast={toast} onLocate={me.update} me={nearby ? me.pos : null} />
 
         {!flow && (
           <div className="float-top">
@@ -243,6 +263,7 @@ export default function App() {
               </label>
             </div>
             <div className="chips" role="toolbar" aria-label="Filtres">
+              <button type="button" className="chip" aria-pressed={nearby} onClick={toggleNearby}><Ic d={I.locate} size={15} />Autour de moi</button>
               <button type="button" className="chip" aria-pressed={cat === 'all' && flag === 'all'} onClick={() => { setCat('all'); setFlag('all'); }}>Tout</button>
               {Object.entries(CATS).map(([k, c]) => (
                 <button type="button" key={k} className="chip" aria-pressed={cat === k} onClick={() => toggle(cat, k, setCat)}>

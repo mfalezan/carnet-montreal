@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { CATS, catColor, SEASONS, LINES, WHO, I } from '../config.js';
 import Ic from './Icon.jsx';
 import { VisitFields, newVisit } from './Forms.jsx';
+import { fmtDist } from '../lib/geo.js';
 import { errMsg, fmtCoord, fmtDate, gmapsUrl, placeUrl, safeLink } from '../lib/utils.js';
 
 /* Fiche d'un lieu. Les actions d'édition n'apparaissent que pour les éditeurs. */
@@ -111,6 +112,7 @@ export default function DetailSheet({ p, isEditor, defaultWho, onClose, onEdit, 
           </dd>
           <dt>Saison</dt><dd>{SEASONS[p.season]}</dd>
           {link && <><dt>Lien</dt><dd><a href={link} target="_blank" rel="noopener noreferrer" className="ext">{link.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}</a></dd></>}
+          {p.dist != null && <><dt>Distance</dt><dd>à {fmtDist(p.dist)} de vous</dd></>}
           <dt>Position</dt><dd className="coords">{fmtCoord(p.lat, p.lng)}</dd>
         </dl>
 

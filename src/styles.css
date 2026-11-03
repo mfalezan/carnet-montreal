@@ -218,3 +218,7 @@ code{font-size:.92em;background:var(--tan-soft);padding:1px 5px;border-radius:5p
 .addr-msg{padding:10px;color:var(--muted);font-size:14px}
 .addr-spin{width:18px;height:18px;border-radius:50%;border:2.5px solid var(--tan);border-top-color:var(--accent);animation:spin .8s linear infinite;flex:none}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+/* Autour de moi */
+.dist{margin-left:auto;color:var(--muted);font-weight:600;font-size:13px;font-variant-numeric:tabular-nums}
+.me-dot{width:18px;height:18px;border-radius:50%;background:#2F80ED;border:3px solid #FFF;box-shadow:0 0 0 7px rgb(47 128 237 / .22),0 1px 4px rgb(0 0 0 / .3);pointer-events:none}

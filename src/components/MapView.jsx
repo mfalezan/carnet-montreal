@@ -56,12 +56,12 @@ const clusterHtml = (n) => {
 const CLUSTER_RADIUS = 56;
 const CLUSTER_MAX_ZOOM = 15;
 
-export default function MapView({ places, selId, onPin, picking, draft, onPlace, apiRef, onToast }) {
-  const ref = useRef(null), mapRef = useRef(null), markers = useRef({}), draftMk = useRef(null);
+export default function MapView({ places, selId, onPin, picking, draft, onPlace, apiRef, onToast, onLocate, me }) {
+  const ref = useRef(null), mapRef = useRef(null), markers = useRef({}), draftMk = useRef(null), meMk = useRef(null);
   const [err, setErr] = useState('');
   const [view, setView] = useState(0); // incrémenté à chaque déplacement de la carte
   const live = useRef({});
-  live.current = { picking, onPlace, onPin, onToast };
+  live.current = { picking, onPlace, onPin, onToast, onLocate };
 
   useEffect(() => {
     const map = new maplibregl.Map({
@@ -70,6 +70,7 @@ export default function MapView({ places, selId, onPin, picking, draft, onPlace,
     });
     const geo = new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: false, showUserLocation: true });
     map.addControl(geo, 'top-right');
+    geo.on('geolocate', (e) => { if (live.current.onLocate && e && e.coords) live.current.onLocate({ lat: e.coords.latitude, lng: e.coords.longitude }); });
     geo.on('error', () => live.current.onToast('Position indisponible : autorisez la localisation'));
     map.on('style.load', () => applyTheme(map));
     map.on('load', () => { setErr(''); setView((v) => v + 1); });
@@ -89,7 +90,7 @@ export default function MapView({ places, selId, onPin, picking, draft, onPlace,
         catch (e) { live.current.onToast('Localisation indisponible'); }
       },
     };
-    return () => { map.remove(); mapRef.current = null; markers.current = {}; draftMk.current = null; };
+    return () => { map.remove(); mapRef.current = null; markers.current = {}; draftMk.current = null; meMk.current = null; };
   }, [apiRef]);
 
   /* Index de regroupement (le lieu sélectionné reste toujours visible à part) */
@@ -179,6 +180,19 @@ export default function MapView({ places, selId, onPin, picking, draft, onPlace,
       draftMk.current.setLngLat([draft.lng, draft.lat]);
     }
   }, [draft]);
+
+  /* Point « vous êtes ici » pendant Autour de moi */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (!me) { if (meMk.current) { meMk.current.remove(); meMk.current = null; } return; }
+    if (!meMk.current) {
+      const el = document.createElement('div');
+      el.className = 'me-dot';
+      el.setAttribute('aria-label', 'Votre position');
+      meMk.current = new maplibregl.Marker({ element: el, anchor: 'center' }).setLngLat([me.lng, me.lat]).addTo(map);
+    } else meMk.current.setLngLat([me.lng, me.lat]);
+  }, [me]);
 
   return (
     <div className={'map' + (picking ? ' placing' : '')}>
