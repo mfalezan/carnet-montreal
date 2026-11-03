@@ -7,6 +7,7 @@ import ListSheet from './components/ListSheet.jsx';
 import LoginSheet from './components/LoginSheet.jsx';
 import { AddSheet, EditSheet } from './components/PlaceSheets.jsx';
 import AddressSearch from './components/AddressSearch.jsx';
+import FilterPanel, { emptyMore, countMore } from './components/FilterPanel.jsx';
 import { useAuth } from './hooks/useAuth.js';
 import { usePlaces } from './hooks/usePlaces.js';
 import { usePosition } from './hooks/usePosition.js';
@@ -28,8 +29,12 @@ export default function App() {
   const [q, setQ] = useState('');
   const [cat, setCat] = useState('all');
   const [flag, setFlag] = useState('all');
+  const [more, setMore] = useState(emptyMore);   // filtres du panneau : saison…
+  const [moreOpen, setMoreOpen] = useState(false);
+  const nMore = countMore(more);
   const nq = norm(q.trim());
   const filtered = placesD.filter((p) => (cat === 'all' || p.cat === cat)
+    && (more.season === 'all' || p.season === more.season || p.season === 'toute')
     && (flag === 'all' || (flag === 'todo' ? !p.visits.length : p.visits.some((v) => v.love)))
     && (!nq || norm([p.name, p.quartier, p.desc, (CATS[p.cat] || {}).label, p.metro && p.metro.station, ...p.visits.map((v) => v.note)].join(' ')).includes(nq)));
   const visible = nearby && me.pos ? filtered.slice().sort((a, b) => a.dist - b.dist) : filtered;
@@ -261,10 +266,14 @@ export default function App() {
                 <input id="q" type="search" placeholder="Recherche" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Rechercher un lieu" enterKeyHint="search" />
                 {q && <button type="button" className="clear" aria-label="Effacer la recherche" onClick={() => setQ('')}><Ic d={I.close} size={18} /></button>}
               </label>
+              <button type="button" className={'circle filt' + (nMore ? ' on' : '')} aria-label={'Plus de filtres' + (nMore ? ' (' + nMore + ' actif' + (nMore > 1 ? 's' : '') + ')' : '')}
+                aria-expanded={moreOpen} onClick={() => setMoreOpen(!moreOpen)}>
+                <Ic d={I.sliders} />{nMore > 0 && <span className="badge">{nMore}</span>}
+              </button>
             </div>
             <div className="chips" role="toolbar" aria-label="Filtres">
               <button type="button" className="chip" aria-pressed={nearby} onClick={toggleNearby}><Ic d={I.locate} size={15} />Autour de moi</button>
-              <button type="button" className="chip" aria-pressed={cat === 'all' && flag === 'all'} onClick={() => { setCat('all'); setFlag('all'); }}>Tout</button>
+              <button type="button" className="chip" aria-pressed={cat === 'all' && flag === 'all' && !nMore} onClick={() => { setCat('all'); setFlag('all'); setMore(emptyMore()); }}>Tout</button>
               {Object.entries(CATS).map(([k, c]) => (
                 <button type="button" key={k} className="chip" aria-pressed={cat === k} onClick={() => toggle(cat, k, setCat)}>
                   <span className="sw" style={{ '--c': catColor(k) }} />{c.label}
@@ -275,6 +284,7 @@ export default function App() {
               </button>
               <button type="button" className="chip" aria-pressed={flag === 'todo'} onClick={() => toggle(flag, 'todo', setFlag)}>À faire</button>
             </div>
+            {moreOpen && <FilterPanel more={more} setMore={setMore} count={visible.length} onClose={() => setMoreOpen(false)} />}
           </div>
         )}
 
