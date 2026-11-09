@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { CATS, catColor, I } from '../config.js';
 import Ic from './Icon.jsx';
-import { errMsg, gmapsRouteUrl, norm, routeUrl } from '../lib/utils.js';
+import { errMsg, gmapsRouteUrl, norm, routeUrl, where } from '../lib/utils.js';
 
 /* Étapes d'un parcours reliées à leurs lieux (les lieux supprimés disparaissent) */
 export function routeStops(route, places) {
@@ -10,7 +10,7 @@ export function routeStops(route, places) {
   return route.stops.filter((s) => byId[s.placeId]).map((s, i) => ({ ...byId[s.placeId], n: i + 1, stopNote: s.note }));
 }
 
-const quartiers = (stops) => Array.from(new Set(stops.map((p) => p.quartier).filter(Boolean))).slice(0, 3).join(', ');
+const quartiers = (stops) => Array.from(new Set(stops.map((p) => (p.region === 'Montréal' ? p.quartier : p.region)).filter(Boolean))).slice(0, 3).join(', ');
 
 /* Fiche d'un parcours */
 export function RouteSheet({ route, places, isEditor, onClose, onShowMap, onPick, onEdit, toast }) {
@@ -61,7 +61,7 @@ export function RouteSheet({ route, places, isEditor, onClose, onShowMap, onPick
                   <span className="stop-n" style={{ '--c': catColor(p.cat) }}>{p.n}</span>
                   <span className="stop-body">
                     <span className="lname">{p.name}</span>
-                    <span className="lmeta">{(CATS[p.cat] || {}).label} · {p.quartier}</span>
+                    <span className="lmeta">{(CATS[p.cat] || {}).label} · {where(p)}</span>
                     {p.stopNote && <span className="stop-note">{p.stopNote}</span>}
                   </span>
                 </button>
@@ -88,7 +88,7 @@ export function RouteEditSheet({ route, places, onClose, onSave, onDelete }) {
   const inRoute = new Set(stops.map((s) => s.placeId));
   const nq = norm(q.trim());
   const candidates = places
-    .filter((p) => !inRoute.has(p.id) && (!nq || norm(p.name + ' ' + p.quartier + ' ' + ((CATS[p.cat] || {}).label || '')).includes(nq)))
+    .filter((p) => !inRoute.has(p.id) && (!nq || norm(p.name + ' ' + p.quartier + ' ' + p.region + ' ' + ((CATS[p.cat] || {}).label || '')).includes(nq)))
     .slice(0, 8);
 
   const move = (i, d) => setStops((s) => { const n = s.slice(); const j = i + d; if (j < 0 || j >= n.length) return s; [n[i], n[j]] = [n[j], n[i]]; return n; });
@@ -130,7 +130,7 @@ export function RouteEditSheet({ route, places, onClose, onSave, onDelete }) {
                     <li key={s.placeId} className="stop-edit">
                       <div className="stop-row">
                         <span className="stop-n" style={{ '--c': catColor(p.cat) }}>{i + 1}</span>
-                        <span className="stop-body"><span className="lname">{p.name}</span><span className="lmeta">{p.quartier}</span></span>
+                        <span className="stop-body"><span className="lname">{p.name}</span><span className="lmeta">{where(p)}</span></span>
                         <span className="stop-tools">
                           <button type="button" className="mini" aria-label={'Monter ' + p.name} disabled={i === 0} onClick={() => move(i, -1)}><Ic d={I.up} size={18} /></button>
                           <button type="button" className="mini" aria-label={'Descendre ' + p.name} disabled={i === stops.length - 1} onClick={() => move(i, 1)}><Ic d={I.down} size={18} /></button>
@@ -157,7 +157,7 @@ export function RouteEditSheet({ route, places, onClose, onSave, onDelete }) {
                   <li key={p.id}>
                     <button type="button" className="lrow" onClick={() => { setStops(stops.concat([{ placeId: p.id, note: '' }])); setErr(''); }}>
                       <span className="lthumb" style={{ '--c': catColor(p.cat) }}><Ic d={I[p.cat]} size={22} /></span>
-                      <span style={{ minWidth: 0 }}><span className="lname">{p.name}</span><span className="lmeta">{(CATS[p.cat] || {}).label} · {p.quartier}</span></span>
+                      <span style={{ minWidth: 0 }}><span className="lname">{p.name}</span><span className="lmeta">{(CATS[p.cat] || {}).label} · {where(p)}</span></span>
                       <Ic d={I.plus} />
                     </button>
                   </li>

@@ -36,7 +36,8 @@ create table if not exists public.places (
   id            uuid primary key default gen_random_uuid(),
   name          text not null check (length(trim(name)) > 0),
   cat           text not null check (cat in ('bouffe', 'vues', 'culture', 'parcs', 'sorties')),
-  quartier      text not null default 'Montréal',
+  quartier      text not null default 'Montréal',     -- quartier, ou ville hors de Montréal
+  region        text not null default 'Montréal' check (length(trim(region)) > 0),  -- migration 004
   lat           double precision not null check (lat between -90 and 90),
   lng           double precision not null check (lng between -180 and 180),
   season        text not null default 'toute' check (season in ('toute', 'ete', 'hiver')),
@@ -59,6 +60,7 @@ create table if not exists public.places (
 -- -----------------------------------------------------------------------------
 -- Pour une base créée avant ces colonnes, voir supabase/migrations/002_etiquettes_prix.sql
 create index if not exists places_tags_idx on public.places using gin (tags);
+create index if not exists places_region_idx on public.places (region);
 
 create table if not exists public.visits (
   id          uuid primary key default gen_random_uuid(),
@@ -183,6 +185,84 @@ begin
 end $$;
 
 -- -----------------------------------------------------------------------------
+-- Calendrier des visites (migration 005) : réservé aux éditeurs
+-- -----------------------------------------------------------------------------
+create table if not exists public.stays (
+  id          uuid primary key default gen_random_uuid(),
+  guests      text not null check (length(trim(guests)) > 0),   -- « Papa et Maman », « Léa »…
+  start_date  date not null,
+  end_date    date not null,
+  note        text not null default '',
+  created_by  uuid default auth.uid() references auth.users(id) on delete set null,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+  check (end_date >= start_date)
+);
+create index if not exists stays_dates_idx on public.stays (start_date, end_date);
+
+drop trigger if exists stays_touch on public.stays;
+create trigger stays_touch before update on public.stays
+  for each row execute function public.touch_updated_at();
+
+alter table public.stays enable row level security;
+revoke all on public.stays from anon;
+grant select, insert, update, delete on public.stays to authenticated;
+
+drop policy if exists "stays: éditeurs seulement" on public.stays;
+create policy "stays: éditeurs seulement" on public.stays
+  for all to authenticated using (public.is_editor()) with check (public.is_editor());
+
+-- -----------------------------------------------------------------------------
+-- Personnes (migration 006) : prénom, « j'aime » et « fait / à faire » par lieu
+-- Chacun n'écrit que ses propres lignes (visiteurs : compte anonyme Supabase)
+-- -----------------------------------------------------------------------------
+create table if not exists public.profiles (
+  user_id    uuid primary key references auth.users(id) on delete cascade,
+  name       text not null check (length(trim(name)) between 1 and 40),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists profiles_touch on public.profiles;
+create trigger profiles_touch before update on public.profiles
+  for each row execute function public.touch_updated_at();
+
+create table if not exists public.place_reactions (
+  place_id   uuid not null references public.places(id) on delete cascade,
+  user_id    uuid not null references public.profiles(user_id) on delete cascade,
+  liked      boolean not null default false,
+  status     text check (status in ('a_faire', 'fait')),
+  updated_at timestamptz not null default now(),
+  primary key (place_id, user_id)
+);
+create index if not exists place_reactions_user_idx on public.place_reactions(user_id);
+
+drop trigger if exists place_reactions_touch on public.place_reactions;
+create trigger place_reactions_touch before update on public.place_reactions
+  for each row execute function public.touch_updated_at();
+
+alter table public.profiles        enable row level security;
+alter table public.place_reactions enable row level security;
+
+grant select on public.profiles, public.place_reactions to anon, authenticated;
+grant insert, update, delete on public.profiles, public.place_reactions to authenticated;
+
+do $$
+declare t text;
+begin
+  foreach t in array array['profiles', 'place_reactions'] loop
+    execute format('drop policy if exists "%1$s: lecture publique" on public.%1$s', t);
+    execute format('create policy "%1$s: lecture publique" on public.%1$s for select to anon, authenticated using (true)', t);
+    execute format('drop policy if exists "%1$s: ajout de ses lignes" on public.%1$s', t);
+    execute format('create policy "%1$s: ajout de ses lignes" on public.%1$s for insert to authenticated with check (user_id = auth.uid())', t);
+    execute format('drop policy if exists "%1$s: modif de ses lignes" on public.%1$s', t);
+    execute format('create policy "%1$s: modif de ses lignes" on public.%1$s for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid())', t);
+    execute format('drop policy if exists "%1$s: suppr de ses lignes" on public.%1$s', t);
+    execute format('create policy "%1$s: suppr de ses lignes" on public.%1$s for delete to authenticated using (user_id = auth.uid())', t);
+  end loop;
+end $$;
+
+-- -----------------------------------------------------------------------------
 -- Stockage des photos : bucket public en lecture, écriture réservée aux éditeurs
 -- -----------------------------------------------------------------------------
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
@@ -204,6 +284,56 @@ create policy "photos: modif éditeurs" on storage.objects
 drop policy if exists "photos: suppr éditeurs" on storage.objects;
 create policy "photos: suppr éditeurs" on storage.objects
   for delete to authenticated using (bucket_id = 'photos' and public.is_editor());
+
+-- -----------------------------------------------------------------------------
+-- Commentaires (migration 007), avec une photo facultative
+-- Auteur ou éditeurs peuvent supprimer ; photos des visiteurs dans guests/<id>/
+-- -----------------------------------------------------------------------------
+create table if not exists public.comments (
+  id          uuid primary key default gen_random_uuid(),
+  place_id    uuid not null references public.places(id) on delete cascade,
+  user_id     uuid not null default auth.uid() references public.profiles(user_id) on delete cascade,
+  body        text not null default '' check (length(body) <= 1000),
+  photo_path  text,
+  created_at  timestamptz not null default now(),
+  check (length(trim(body)) > 0 or photo_path is not null)
+);
+create index if not exists comments_place_idx on public.comments(place_id, created_at desc);
+
+alter table public.comments enable row level security;
+grant select on public.comments to anon, authenticated;
+grant insert, delete on public.comments to authenticated;
+
+drop policy if exists "comments: lecture publique" on public.comments;
+create policy "comments: lecture publique" on public.comments
+  for select to anon, authenticated using (true);
+
+drop policy if exists "comments: ajout de ses commentaires" on public.comments;
+create policy "comments: ajout de ses commentaires" on public.comments
+  for insert to authenticated with check (
+    user_id = auth.uid()
+    and (photo_path is null or photo_path like 'guests/' || auth.uid()::text || '/%' or public.is_editor())
+  );
+
+drop policy if exists "comments: suppr auteur ou éditeurs" on public.comments;
+create policy "comments: suppr auteur ou éditeurs" on public.comments
+  for delete to authenticated using (user_id = auth.uid() or public.is_editor());
+
+-- Photos des visiteurs : chacun écrit et supprime seulement dans son dossier guests/<id>/
+drop policy if exists "photos: visiteurs, lecture de leur dossier" on storage.objects;
+create policy "photos: visiteurs, lecture de leur dossier" on storage.objects
+  for select to authenticated using (
+    bucket_id = 'photos' and (storage.foldername(name))[1] = 'guests' and (storage.foldername(name))[2] = auth.uid()::text);
+
+drop policy if exists "photos: visiteurs, ajout dans leur dossier" on storage.objects;
+create policy "photos: visiteurs, ajout dans leur dossier" on storage.objects
+  for insert to authenticated with check (
+    bucket_id = 'photos' and (storage.foldername(name))[1] = 'guests' and (storage.foldername(name))[2] = auth.uid()::text);
+
+drop policy if exists "photos: visiteurs, suppr dans leur dossier" on storage.objects;
+create policy "photos: visiteurs, suppr dans leur dossier" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'photos' and (storage.foldername(name))[1] = 'guests' and (storage.foldername(name))[2] = auth.uid()::text);
 
 -- =============================================================================
 -- DERNIÈRE ÉTAPE (à faire après avoir créé vos deux comptes dans

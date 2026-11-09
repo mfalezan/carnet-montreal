@@ -12,6 +12,7 @@ function useFillFrom(prefill, setF, fields) {
     setF((f) => {
       const n = { ...f };
       fields.forEach(([k, v]) => { if (!String(n[k] || '').trim() && prefill[v]) n[k] = prefill[v]; });
+      if (prefill.region) n.region = prefill.region; // la région suit toujours l'adresse choisie
       return n;
     });
   }, [prefill]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -77,7 +78,7 @@ export function EditSheet({ place, pos, prefill, hidden, onClose, onMove, onSave
   const [f, setF] = useState(() => placeToForm(place));
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
-  useFillFrom(prefill, setF, [['address', 'address']]);
+  useFillFrom(prefill, setF, [['address', 'address'], ['quartier', 'quartier']]);
   const moved = pos.lat !== place.lat || pos.lng !== place.lng;
 
   const submit = async (e) => {

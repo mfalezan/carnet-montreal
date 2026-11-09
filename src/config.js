@@ -13,6 +13,11 @@ export const SEASONS = { toute: "Toute l'année", ete: "Plutôt l'été", hiver:
 
 export const LINES = { verte: '#008E4F', orange: '#F08123', jaune: '#FFE300', bleue: '#0083CA' };
 
+/* Régions proposées dans le formulaire (on peut en saisir d'autres) */
+export const HOME_REGION = 'Montréal';
+export const REGIONS = ['Montréal', 'Québec', 'Laurentides', 'Cantons-de-l\'Est', 'Charlevoix', 'Mauricie', 'Lanaudière',
+  'Outaouais', 'Saguenay–Lac-Saint-Jean', 'Bas-Saint-Laurent', 'Gaspésie', 'Côte-Nord', 'Ottawa', 'Toronto'];
+
 /* Prix indicatif */
 export const PRICES = { 1: '$', 2: '$$', 3: '$$$' };
 
@@ -59,5 +64,12 @@ export const I = {
   logout: 'M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10',
   up: 'M6 15l6-6 6 6', down: 'M6 9l6 6 6-6',
   walk: 'M13 4.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0ZM9 21l2.5-7.5L14 16v5M7 12l2-4.5 3.5 1L15 12h3M11.5 13.5 9.5 8.5',
+  menu: 'M4 7h16M4 12h16M4 17h16',
+  map: 'M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2ZM9 4v14M15 6v14',
+  lock: 'M6 11h12v9H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3',
+  money: 'M12 3v18M16.5 7.5c0-1.7-2-3-4.5-3S7.5 5.8 7.5 7.5 9.5 10.4 12 11s4.5 1.8 4.5 3.7-2 3.3-4.5 3.3-4.5-1.3-4.5-3',
+  calendar: 'M4 6h16v14H4zM4 10h16M8 3v5M16 3v5',
+  bookmark: 'M6 3h12v18l-6-4-6 4Z',
+  check: 'M5 12.5l4.5 4.5L19 7',
   sliders: 'M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1M15 4v4M9 10v4M17 16v4',
 };

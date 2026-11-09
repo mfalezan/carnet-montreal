@@ -30,7 +30,7 @@ export default function AddressSearch({ onPick }) {
       {(results.length > 0 || state === 'error' || (state === 'done' && !results.length)) && (
         <ul className="addr-list" role="listbox" aria-label="Suggestions">
           {state === 'error' && <li className="addr-msg">Recherche indisponible, touchez plutôt la carte.</li>}
-          {state === 'done' && !results.length && <li className="addr-msg">Aucun résultat à Montréal.</li>}
+          {state === 'done' && !results.length && <li className="addr-msg">Aucun résultat.</li>}
           {results.map((r) => (
             <li key={r.id}>
               <button type="button" className="addr-item" onClick={() => { onPick(r); setQ(''); setResults([]); setState('idle'); }}>

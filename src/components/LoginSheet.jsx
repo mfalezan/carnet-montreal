@@ -21,11 +21,11 @@ export default function LoginSheet({ auth, onClose, toast }) {
   return (
     <div className="sheet" role="dialog" aria-label="Connexion">
       <div className="sheet-bar">
-        <h2>{auth.session ? 'Mon compte' : 'Connexion'}</h2>
+        <h2>{auth.session && !auth.anonymous ? 'Mon compte' : 'Connexion'}</h2>
         <button className="circle" type="button" aria-label="Fermer" onClick={onClose}><Ic d={I.close} /></button>
       </div>
       <div className="content">
-        {auth.session ? (
+        {auth.session && !auth.anonymous ? (
           <>
             {auth.editor === null && <p className="muted">Vérification du compte…</p>}
             {auth.editor && (

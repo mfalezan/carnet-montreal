@@ -14,7 +14,12 @@ Nos adresses testées à Montréal, sur une carte. Web app installable sur tél�
 | Fiche | Verdict, itinéraire Google Maps, infos métro / saison / adresse / lien, photos, historique des visites, partage d'un lien direct (`/?lieu=…`) |
 | Écriture | Ajout à sa position GPS ou en touchant la carte, modification (y compris déplacer le point), visites, photos multiples avec couverture, suppression |
 | Parcours | Listes ordonnées de lieux (« Un dimanche sur le Plateau »), affichées sur la carte avec étapes numérotées et tracé, itinéraire à pied, lien direct (`/?parcours=…`) |
-| Comptes | E-mail + mot de passe Supabase, écriture réservée aux comptes de la table `editors` |
+| Menu | Bouton en haut à gauche : toutes les fonctionnalités, avec un cadenas sur ce qui est réservé à vous deux |
+| Régions | Lieux hors de Montréal (Québec, Laurentides…), filtre par région, recherche d'adresse au Québec et en Ontario |
+| Avis des visiteurs | Prénom sans mot de passe (compte anonyme Supabase), « j'aime », « à faire / fait », commentaires avec photo, « Ma liste » |
+| Convertisseur | $ CA ↔ €, taxes du Québec et pourboire, taux BCE (Frankfurter) gardé hors connexion |
+| Calendrier | Qui vient vous voir et quand, visible et modifiable par vous deux seulement |
+| Comptes | E-mail + mot de passe Supabase, écriture réservée aux comptes de la table `editors` | ; visiteurs : simple prénom
 | Photos | Redimensionnées dans le téléphone avant envoi (1600 px + miniature 480 px), stockées dans Supabase Storage |
 
 ```
@@ -34,7 +39,7 @@ supabase/
 1. Sur [supabase.com](https://supabase.com), crée un projet (région **Canada (Central)** de préférence). Garde le mot de passe de la base quelque part, il ne sert pas à l'app.
 2. **SQL Editor > New query** : colle tout `supabase/schema.sql`, puis **Run**.
 3. *(Facultatif)* Nouvelle requête avec `supabase/seed.sql` pour partir avec les lieux du POC.
-4. **Authentication > Sign In / Providers** : laisse **Email** activé, et **désactive « Allow new users to sign up »**. Personne d'autre ne pourra créer de compte.
+4. **Authentication > Sign In / Providers** : laisse **Email** activé, active **« Allow anonymous sign-ins »** et laisse **« Allow new users to sign up »** activé. C'est ce qui permet aux visiteurs de choisir un prénom sans mot de passe (Supabase compte un visiteur anonyme comme une inscription). Ça reste sûr : seuls les comptes de la table `editors` peuvent modifier le carnet ; tout autre compte peut seulement aimer, cocher « fait / à faire » et commenter. Si tu ne veux pas de cette fonctionnalité, désactive les deux réglages : les fiches afficheront un message à la place.
 5. **Authentication > Users > Add user > Create new user** : crée ton compte et celui d'Azéline (e-mail + mot de passe), en cochant **Auto Confirm User**.
 6. Retour dans **SQL Editor**, exécute les deux lignes en bas de `schema.sql` avec vos vrais e-mails :
 
@@ -49,6 +54,14 @@ supabase/
 
 > Pourquoi un mot de passe plutôt qu'un lien magique : sur iPhone, un lien reçu par e-mail s'ouvre dans Safari et non dans l'app installée, donc la connexion ne « tient » pas dans l'app. En plus, l'envoi d'e-mails intégré à Supabase est limité aux membres de l'équipe du projet. Le mot de passe évite ces deux soucis ; le gestionnaire de mots de passe du téléphone le retient.
 
+### Prénoms des visiteurs (migrations 006 et 007)
+
+Pour que les visiteurs puissent aimer, cocher et commenter, active dans **Authentication > Sign In / Providers** :
+- **Allow anonymous sign-ins**
+- **Allow new users to sign up** (requis par Supabase pour les comptes anonymes)
+
+Supabase limite par défaut à 30 nouveaux visiteurs par heure et par adresse IP (réglable dans **Authentication > Rate Limits**). Si un jour tu reçois des commentaires indésirables, tu peux les supprimer depuis la fiche, ou ajouter un captcha (Turnstile) dans **Authentication > Attack Protection**.
+
 ### Mettre à jour une base existante
 
 Quand une nouvelle version ajoute des colonnes ou des tables, un fichier apparaît dans `supabase/migrations/`. Exécute-le une fois dans **SQL Editor** (ils peuvent être relancés sans risque), **avant** de mettre la nouvelle version en ligne :
@@ -57,6 +70,10 @@ Quand une nouvelle version ajoute des colonnes ou des tables, un fichier appara�
 |---|---|
 | `002_etiquettes_prix.sql` | prix ($ à $$$) et étiquettes des lieux |
 | `003_parcours.sql` | parcours à partager (tables `routes` et `route_stops`) |
+| `004_regions.sql` | région des lieux (activités hors de Montréal) |
+| `005_calendrier.sql` | calendrier des visites, visible par vous deux seulement |
+| `006_personnes.sql` | prénoms, « j'aime » et « fait / à faire » par personne |
+| `007_commentaires.sql` | commentaires avec photo (après la 006) |
 
 Une base créée directement avec la dernière version de `schema.sql` est déjà à jour.
 

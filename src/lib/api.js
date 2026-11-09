@@ -22,6 +22,7 @@ function toPlace(r) {
     name: r.name,
     cat: r.cat,
     quartier: r.quartier,
+    region: r.region || 'Montréal',
     lat: r.lat,
     lng: r.lng,
     season: r.season,
@@ -48,18 +49,21 @@ export async function fetchPlaces() {
 }
 
 /* Formulaire -> colonnes */
-export const emptyPlaceForm = () => ({ name: '', cat: 'bouffe', quartier: '', season: 'toute', metroStation: '', metroLines: [], desc: '', address: '', link: '', price: null, tags: [] });
+export const emptyPlaceForm = () => ({ name: '', cat: 'bouffe', region: 'Montréal', quartier: '', season: 'toute', metroStation: '', metroLines: [], desc: '', address: '', link: '', price: null, tags: [] });
 
 export const placeToForm = (p) => ({
-  name: p.name, cat: p.cat, quartier: p.quartier === 'Montréal' ? '' : p.quartier, season: p.season,
+  name: p.name, cat: p.cat, region: p.region, quartier: p.quartier === 'Montréal' || p.quartier === p.region ? '' : p.quartier, season: p.season,
   metroStation: p.metro ? p.metro.station : '', metroLines: p.metro ? p.metro.lines.slice() : [],
   desc: p.desc, address: p.address, link: p.link, price: p.price, tags: p.tags.slice(),
 });
 
-const formToRow = (f) => ({
+const formToRow = (f) => {
+  const region = (f.region || '').trim() || 'Montréal';
+  return {
   name: f.name.trim(),
   cat: f.cat,
-  quartier: f.quartier.trim() || 'Montréal',
+  region,
+  quartier: f.quartier.trim() || region,
   season: f.season,
   metro_station: f.metroStation.trim() || null,
   metro_lines: f.metroLines,
@@ -68,7 +72,8 @@ const formToRow = (f) => ({
   link: f.link.trim() || null,
   price: f.price || null,
   tags: f.tags,
-});
+  };
+};
 
 export async function createPlace(form, pos) {
   const { data, error } = await supabase.from('places').insert({ ...formToRow(form), lat: pos.lat, lng: pos.lng }).select('id').single();
@@ -183,4 +188,95 @@ export async function saveRoute(r) {
 export async function deleteRoute(id) {
   const { error } = await supabase.from('routes').delete().eq('id', id);
   if (error) throw error;
+}
+
+/* ---------- Calendrier des visites (éditeurs seulement) ---------- */
+const toStay = (r) => ({ id: r.id, guests: r.guests, start: r.start_date, end: r.end_date, note: r.note || '' });
+
+/* Renvoie null si la migration 005 n'a pas encore été exécutée */
+export async function fetchStays() {
+  const { data, error } = await supabase.from('stays').select('*').order('start_date', { ascending: true });
+  if (error) { if (missingTable(error)) return null; throw error; }
+  return data.map(toStay);
+}
+
+export async function saveStay(st) {
+  const row = { guests: st.guests.trim(), start_date: st.start, end_date: st.end, note: (st.note || '').trim() };
+  const q = st.id ? supabase.from('stays').update(row).eq('id', st.id) : supabase.from('stays').insert(row);
+  const { error } = await q;
+  if (error) throw error;
+}
+
+export async function deleteStay(id) {
+  const { error } = await supabase.from('stays').delete().eq('id', id);
+  if (error) throw error;
+}
+
+/* ---------- Personnes : prénoms et réactions (j'aime, fait / à faire) ---------- */
+
+/* Renvoie null si la migration 006 n'a pas encore été exécutée */
+export async function fetchPeople() {
+  const [pr, re] = await Promise.all([
+    supabase.from('profiles').select('user_id, name'),
+    supabase.from('place_reactions').select('place_id, user_id, liked, status'),
+  ]);
+  const err = pr.error || re.error;
+  if (err) { if (missingTable(err)) return null; throw err; }
+  const names = {};
+  pr.data.forEach((x) => { names[x.user_id] = x.name; });
+  return { names, reactions: re.data };
+}
+
+export async function saveProfile(userId, name) {
+  const { error } = await supabase.from('profiles').upsert({ user_id: userId, name: name.trim() }, { onConflict: 'user_id' });
+  if (error) throw error;
+}
+
+/* Réaction d'une personne sur un lieu ; une réaction vide est supprimée */
+export async function saveReaction(placeId, userId, r) {
+  if (!r.liked && !r.status) {
+    const { error } = await supabase.from('place_reactions').delete().eq('place_id', placeId).eq('user_id', userId);
+    if (error) throw error;
+    return;
+  }
+  const { error } = await supabase.from('place_reactions')
+    .upsert({ place_id: placeId, user_id: userId, liked: !!r.liked, status: r.status || null }, { onConflict: 'place_id,user_id' });
+  if (error) throw error;
+}
+
+/* ---------- Commentaires (avec photo facultative) ---------- */
+const toComment = (r) => ({
+  id: r.id, placeId: r.place_id, userId: r.user_id, body: r.body || '', at: r.created_at,
+  photo: r.photo_path ? { path: r.photo_path, url: photoUrl(r.photo_path), thumb: photoUrl(thumbPath(r.photo_path)) } : null,
+});
+
+/* Renvoie null si la migration 007 n'a pas encore été exécutée */
+export async function fetchComments() {
+  const { data, error } = await supabase.from('comments').select('*').order('created_at', { ascending: false });
+  if (error) { if (missingTable(error)) return null; throw error; }
+  return data.map(toComment).sort((a, b) => b.at.localeCompare(a.at));
+}
+
+export async function addComment(placeId, userId, body, file) {
+  let photoPath = null;
+  if (file) {
+    const { full, thumb } = await preparePhoto(file);
+    photoPath = 'guests/' + userId + '/' + crypto.randomUUID() + '.jpg';
+    const opts = { contentType: 'image/jpeg', cacheControl: '31536000', upsert: false };
+    const { error: e1 } = await supabase.storage.from(BUCKET).upload(photoPath, full.blob, opts);
+    if (e1) throw e1;
+    const { error: e2 } = await supabase.storage.from(BUCKET).upload(thumbPath(photoPath), thumb.blob, opts);
+    if (e2) throw e2;
+  }
+  const { error } = await supabase.from('comments').insert({ place_id: placeId, user_id: userId, body: (body || '').trim(), photo_path: photoPath });
+  if (error) {
+    if (photoPath) await supabase.storage.from(BUCKET).remove([photoPath, thumbPath(photoPath)]);
+    throw error;
+  }
+}
+
+export async function deleteComment(c) {
+  const { error } = await supabase.from('comments').delete().eq('id', c.id);
+  if (error) throw error;
+  if (c.photo) await supabase.storage.from(BUCKET).remove([c.photo.path, thumbPath(c.photo.path)]);
 }

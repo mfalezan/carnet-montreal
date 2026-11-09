@@ -2,16 +2,19 @@ import { useRef, useState } from 'react';
 import { CATS, catColor, SEASONS, LINES, WHO, I, PRICES, TAGS } from '../config.js';
 import Ic from './Icon.jsx';
 import { VisitFields, newVisit } from './Forms.jsx';
+import { ReactionBar, Comments } from './People.jsx';
 import { fmtDist } from '../lib/geo.js';
+import { where } from '../lib/utils.js';
 import { errMsg, fmtCoord, fmtDate, gmapsUrl, placeUrl, safeLink } from '../lib/utils.js';
 
 /* Fiche d'un lieu. Les actions d'édition n'apparaissent que pour les éditeurs. */
-export default function DetailSheet({ p, isEditor, defaultWho, onClose, onEdit, act, toast }) {
+export default function DetailSheet({ p, isEditor, defaultWho, onClose, onEdit, act, toast, people, onReact, onComment }) {
   const [visitForm, setVisitForm] = useState(null); // { id?, d, who, love, note }
   const [busy, setBusy] = useState('');
   const [confirm, setConfirm] = useState(false);
   const [viewer, setViewer] = useState(null); // index de la photo affichée
   const [confirmPhoto, setConfirmPhoto] = useState(false);
+  const [zoom, setZoom] = useState(null); // photo d'un commentaire en grand
   const fileRef = useRef(null);
 
   const loved = p.visits.some((x) => x.love), n = p.visits.length;
@@ -28,7 +31,7 @@ export default function DetailSheet({ p, isEditor, defaultWho, onClose, onEdit, 
   const share = async () => {
     const url = placeUrl(p);
     try {
-      if (navigator.share) { await navigator.share({ title: p.name, text: p.name + ' — ' + p.quartier + ', Montréal', url }); return; }
+      if (navigator.share) { await navigator.share({ title: p.name, text: p.name + ' — ' + where(p) + (p.region === 'Montréal' ? ', Montréal' : ''), url }); return; }
       await navigator.clipboard.writeText(p.name + ' — ' + url);
       toast('Lien copié');
     } catch (e) {
@@ -70,7 +73,7 @@ export default function DetailSheet({ p, isEditor, defaultWho, onClose, onEdit, 
         </div>
         {!p.cover && <span className="hero-mark"><Ic d={I[p.cat]} size={200} sw={1.6} /></span>}
         <h2>{p.name}</h2>
-        <p>{(CATS[p.cat] || {}).label} · {p.quartier}{p.price ? ' · ' + PRICES[p.price] : ''}</p>
+        <p>{(CATS[p.cat] || {}).label} · {where(p)}{p.price ? ' · ' + PRICES[p.price] : ''}</p>
       </header>
 
       <div className="content">
@@ -94,6 +97,17 @@ export default function DetailSheet({ p, isEditor, defaultWho, onClose, onEdit, 
         </div>
 
         <a className="pill" href={gmapsUrl(p)} target="_blank" rel="noopener noreferrer"><Ic d={I.route} /> Itinéraire</a>
+
+        {people && people.available && (
+          <>
+            <h3 className="h-sec">Et vous ?</h3>
+            <ReactionBar p={p} people={people} onReact={onReact} />
+            {people.commentsOn && (
+              <Comments p={p} people={people} isEditor={isEditor} onComment={onComment} onZoom={setZoom}
+                onDelete={async (c) => { await people.uncomment(c); toast('Commentaire supprimé'); }} />
+            )}
+          </>
+        )}
 
         <h3 className="h-sec">Le lieu</h3>
         {p.desc && <p className="desc">{p.desc}</p>}
@@ -196,6 +210,12 @@ export default function DetailSheet({ p, isEditor, defaultWho, onClose, onEdit, 
         )}
       </div>
 
+      {zoom && (
+        <div className="lightbox" role="dialog" aria-label="Photo" onClick={() => setZoom(null)}>
+          <img src={zoom} alt="" onClick={(e) => e.stopPropagation()} />
+          <div className="lb-bar"><button className="glass" type="button" aria-label="Fermer la photo" onClick={() => setZoom(null)}><Ic d={I.close} /></button></div>
+        </div>
+      )}
       {photo && (
         <div className="lightbox" role="dialog" aria-label="Photo" onClick={() => setViewer(null)}>
           <img src={photo.url} alt={'Photo de ' + p.name} onClick={(e) => e.stopPropagation()} />
