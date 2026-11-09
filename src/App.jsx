@@ -317,6 +317,12 @@ export default function App() {
     toast('Bienvenue ' + name + ' !');
     if (pending) setTimeout(() => pending.action({ id, name }), 0);
   };
+  /* Commenter : demande le prénom si besoin ; le commentaire part une fois identifié */
+  const commentOn = (placeId) => (body, file) => new Promise((resolve, reject) => {
+    if (people.me) { people.comment(placeId, body, file).then(() => { toast('Commentaire publié'); resolve(); }, reject); return; }
+    if (!people.available) { reject(new Error("Les avis par personne ne sont pas encore activés sur ce carnet.")); return; }
+    setAsk({ action: (who) => people.comment(placeId, body, file, who.id).then(() => { toast('Commentaire publié'); resolve(); }, reject), cancel: () => reject(new Error('Choisissez un prénom pour publier.')) });
+  });
   const reactOn = (placeId) => (patch) => requireMe((who) => people.react(placeId, patch, who.id).catch((e) => toast(errMsg(e))));
 
   /* ---------- Menu ---------- */
@@ -503,7 +509,7 @@ export default function App() {
       {sheet && sheet.t === 'login' && <LoginSheet auth={auth} toast={toast} onClose={() => setSheet(null)} />}
       {detail && (
         <DetailSheet key={detail.id} p={detail} isEditor={auth.isEditor} defaultWho={DEFAULT_WHO} toast={toast} act={act}
-          people={people} onReact={reactOn(detail.id)}
+          people={people} onReact={reactOn(detail.id)} onComment={commentOn(detail.id)}
           onClose={() => closeDetail(detail.id)} onEdit={() => openEdit(detail.id)} />
       )}
       {flow && flow.kind === 'add' && draft && (
@@ -512,7 +518,7 @@ export default function App() {
       {editPlace && draft && (
         <EditSheet key={editPlace.id} place={editPlace} pos={draft} prefill={prefill} hidden={picking} onClose={cancelFlow} onMove={() => setPicking(true)} onSave={saveEdit} />
       )}
-      {ask && <NamePrompt onSubmit={onIdentified} onClose={() => setAsk(null)} onLogin={() => { setAsk(null); setSheet({ t: 'login' }); }} />}
+      {ask && <NamePrompt onSubmit={onIdentified} onClose={() => { if (ask.cancel) ask.cancel(); setAsk(null); }} onLogin={() => { if (ask.cancel) ask.cancel(); setAsk(null); setSheet({ t: 'login' }); }} />}
       {toastMsg && <div className="toast" role="status">{toastMsg}</div>}
     </div>
   );

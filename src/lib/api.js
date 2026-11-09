@@ -243,3 +243,40 @@ export async function saveReaction(placeId, userId, r) {
     .upsert({ place_id: placeId, user_id: userId, liked: !!r.liked, status: r.status || null }, { onConflict: 'place_id,user_id' });
   if (error) throw error;
 }
+
+/* ---------- Commentaires (avec photo facultative) ---------- */
+const toComment = (r) => ({
+  id: r.id, placeId: r.place_id, userId: r.user_id, body: r.body || '', at: r.created_at,
+  photo: r.photo_path ? { path: r.photo_path, url: photoUrl(r.photo_path), thumb: photoUrl(thumbPath(r.photo_path)) } : null,
+});
+
+/* Renvoie null si la migration 007 n'a pas encore été exécutée */
+export async function fetchComments() {
+  const { data, error } = await supabase.from('comments').select('*').order('created_at', { ascending: false });
+  if (error) { if (missingTable(error)) return null; throw error; }
+  return data.map(toComment).sort((a, b) => b.at.localeCompare(a.at));
+}
+
+export async function addComment(placeId, userId, body, file) {
+  let photoPath = null;
+  if (file) {
+    const { full, thumb } = await preparePhoto(file);
+    photoPath = 'guests/' + userId + '/' + crypto.randomUUID() + '.jpg';
+    const opts = { contentType: 'image/jpeg', cacheControl: '31536000', upsert: false };
+    const { error: e1 } = await supabase.storage.from(BUCKET).upload(photoPath, full.blob, opts);
+    if (e1) throw e1;
+    const { error: e2 } = await supabase.storage.from(BUCKET).upload(thumbPath(photoPath), thumb.blob, opts);
+    if (e2) throw e2;
+  }
+  const { error } = await supabase.from('comments').insert({ place_id: placeId, user_id: userId, body: (body || '').trim(), photo_path: photoPath });
+  if (error) {
+    if (photoPath) await supabase.storage.from(BUCKET).remove([photoPath, thumbPath(photoPath)]);
+    throw error;
+  }
+}
+
+export async function deleteComment(c) {
+  const { error } = await supabase.from('comments').delete().eq('id', c.id);
+  if (error) throw error;
+  if (c.photo) await supabase.storage.from(BUCKET).remove([c.photo.path, thumbPath(c.photo.path)]);
+}

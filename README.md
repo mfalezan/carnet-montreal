@@ -49,7 +49,7 @@ supabase/
 
 > Pourquoi un mot de passe plutôt qu'un lien magique : sur iPhone, un lien reçu par e-mail s'ouvre dans Safari et non dans l'app installée, donc la connexion ne « tient » pas dans l'app. En plus, l'envoi d'e-mails intégré à Supabase est limité aux membres de l'équipe du projet. Le mot de passe évite ces deux soucis ; le gestionnaire de mots de passe du téléphone le retient.
 
-### Prénoms des visiteurs (migration 006 et suivantes)
+### Prénoms des visiteurs (migrations 006 et 007)
 
 Pour que les visiteurs puissent aimer, cocher et commenter, active dans **Authentication > Sign In / Providers** :
 - **Allow anonymous sign-ins**
@@ -68,6 +68,7 @@ Quand une nouvelle version ajoute des colonnes ou des tables, un fichier appara�
 | `004_regions.sql` | région des lieux (activités hors de Montréal) |
 | `005_calendrier.sql` | calendrier des visites, visible par vous deux seulement |
 | `006_personnes.sql` | prénoms, « j'aime » et « fait / à faire » par personne |
+| `007_commentaires.sql` | commentaires avec photo (après la 006) |
 
 Une base créée directement avec la dernière version de `schema.sql` est déjà à jour.
 

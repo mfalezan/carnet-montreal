@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CATS, catColor, I } from '../config.js';
 import Ic from './Icon.jsx';
 import { errMsg, where } from '../lib/utils.js';
@@ -156,6 +156,93 @@ export function ProfileSheet({ people, places, auth, onClose, onPick, onIdentify
         )}
         {!auth.isEditor && <p className="muted small-print" style={{ marginTop: 16 }}>Vous êtes Matthieu ou Azéline ? <button type="button" className="link-btn" onClick={onLogin}>Connexion</button></p>}
       </div>
+    </div>
+  );
+}
+
+const ago = (iso) => {
+  const d = new Date(iso), diff = (Date.now() - d.getTime()) / 1000;
+  if (diff < 60) return "à l'instant";
+  if (diff < 3600) return 'il y a ' + Math.floor(diff / 60) + ' min';
+  if (diff < 86400) return 'il y a ' + Math.floor(diff / 3600) + ' h';
+  const opts = { day: 'numeric', month: 'short' };
+  if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
+  return d.toLocaleDateString('fr-CA', opts);
+};
+
+/* Commentaires d'un lieu : chacun sous son prénom, avec une photo s'il veut */
+export function Comments({ p, people, isEditor, onComment, onDelete, onZoom }) {
+  const list = people.comments.filter((c) => c.placeId === p.id);
+  const [body, setBody] = useState('');
+  const [file, setFile] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const [confirm, setConfirm] = useState(null);
+  const fileRef = useRef(null);
+  const preview = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!body.trim() && !file) { setErr('Écrivez quelque chose ou ajoutez une photo.'); return; }
+    setBusy(true); setErr('');
+    try { await onComment(body, file); setBody(''); setFile(null); }
+    catch (er) { setErr(errMsg(er)); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="comments">
+      <form className="composer" onSubmit={submit}>
+        <span className="me-avatar sm" aria-hidden="true">{people.me ? people.me.name.slice(0, 1).toUpperCase() : '?'}</span>
+        <div className="composer-main">
+          <textarea rows="2" value={body} maxLength={1000} aria-label="Votre commentaire"
+            placeholder={people.me ? 'Un conseil, une anecdote, ' + people.me.name + ' ?' : 'Un conseil, une anecdote ?'}
+            onChange={(e) => { setBody(e.target.value); setErr(''); }} />
+          {preview && (
+            <div className="picker-item composer-photo">
+              <img src={preview} alt="Photo à publier" />
+              <button type="button" className="picker-x" aria-label="Retirer la photo" onClick={() => setFile(null)}><Ic d={I.close} size={14} sw={2.6} /></button>
+            </div>
+          )}
+          {err && <p className="err" role="alert">{err}</p>}
+          <div className="composer-tools">
+            <button type="button" className="chip" onClick={() => fileRef.current && fileRef.current.click()}><Ic d={I.camera} size={16} /> {file ? 'Changer la photo' : 'Photo'}</button>
+            <input ref={fileRef} type="file" accept="image/*" className="sr-only" tabIndex={-1} aria-hidden="true"
+              onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) { setFile(f); setErr(''); } }} />
+            <button type="submit" className="pill composer-send" disabled={busy || (!body.trim() && !file)}>{busy ? 'Envoi…' : 'Publier'}</button>
+          </div>
+        </div>
+      </form>
+
+      {list.length > 0 ? (
+        <ul className="clist">
+          {list.map((c) => {
+            const name = people.names[c.userId] || 'Quelqu’un';
+            const mine = people.me && people.me.id === c.userId;
+            return (
+              <li key={c.id} className="citem">
+                <span className="me-avatar sm" aria-hidden="true">{name.slice(0, 1).toUpperCase()}</span>
+                <div className="cbody">
+                  <p className="chead"><b>{name}</b> <span>{ago(c.at)}</span></p>
+                  {c.body && <p className="ctext">{c.body}</p>}
+                  {c.photo && (
+                    <button type="button" className="cphoto" onClick={() => onZoom(c.photo.url)} aria-label={'Agrandir la photo de ' + name}>
+                      <img src={c.photo.thumb} alt="" loading="lazy" />
+                    </button>
+                  )}
+                  {(mine || isEditor) && (confirm === c.id ? (
+                    <span className="row-btns" style={{ gap: 12 }}>
+                      <button type="button" className="link-btn" onClick={async () => { try { await onDelete(c); } catch (er) { setErr(errMsg(er)); } setConfirm(null); }}>Confirmer la suppression</button>
+                      <button type="button" className="link-btn muted-link" onClick={() => setConfirm(null)}>Annuler</button>
+                    </span>
+                  ) : <button type="button" className="link-btn muted-link" onClick={() => setConfirm(c.id)}>Supprimer</button>)}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      ) : <p className="muted" style={{ margin: 0 }}>Pas encore de commentaire. Soyez le premier !</p>}
     </div>
   );
 }

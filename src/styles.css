@@ -365,3 +365,23 @@ code{font-size:.92em;background:var(--tan-soft);padding:1px 5px;border-radius:5p
 .me-txt b{font-size:18px}
 .me-txt small{color:var(--muted)}
 .h-n{font:700 15px var(--f-body);color:var(--muted);vertical-align:middle;margin-left:4px}
+
+/* Commentaires */
+.comments{display:flex;flex-direction:column;gap:14px;margin-top:6px}
+.me-avatar.sm{width:36px;height:36px;font-size:15px}
+.composer{display:grid;grid-template-columns:36px minmax(0,1fr);gap:10px;align-items:start;border:1.5px solid var(--tan);background:var(--paper);border-radius:18px;padding:12px}
+.composer-main{display:flex;flex-direction:column;gap:8px;min-width:0}
+.composer textarea{border:0!important;padding:6px 0!important;background:transparent!important;resize:none;min-height:46px}
+.composer textarea:focus{outline:none}
+.composer-photo{width:120px}
+.composer-tools{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.composer-send{width:auto;min-height:40px;padding:0 18px;font-size:15px}
+.clist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.citem{display:grid;grid-template-columns:36px minmax(0,1fr);gap:10px;padding:12px 0;border-bottom:1.5px solid var(--tan-soft)}
+.cbody{min-width:0;display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+.chead{margin:0;font-size:14.5px}
+.chead span{color:var(--muted);font-size:13px;margin-left:4px}
+.ctext{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.cphoto{border:0;padding:0;background:none;cursor:zoom-in;border-radius:14px;overflow:hidden;margin-top:4px;line-height:0}
+.cphoto img{max-width:220px;max-height:220px;object-fit:cover;border-radius:14px}
+.link-btn.muted-link{color:var(--muted);font-weight:600;font-size:13px;margin-top:2px}

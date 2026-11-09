@@ -285,6 +285,56 @@ drop policy if exists "photos: suppr éditeurs" on storage.objects;
 create policy "photos: suppr éditeurs" on storage.objects
   for delete to authenticated using (bucket_id = 'photos' and public.is_editor());
 
+-- -----------------------------------------------------------------------------
+-- Commentaires (migration 007), avec une photo facultative
+-- Auteur ou éditeurs peuvent supprimer ; photos des visiteurs dans guests/<id>/
+-- -----------------------------------------------------------------------------
+create table if not exists public.comments (
+  id          uuid primary key default gen_random_uuid(),
+  place_id    uuid not null references public.places(id) on delete cascade,
+  user_id     uuid not null default auth.uid() references public.profiles(user_id) on delete cascade,
+  body        text not null default '' check (length(body) <= 1000),
+  photo_path  text,
+  created_at  timestamptz not null default now(),
+  check (length(trim(body)) > 0 or photo_path is not null)
+);
+create index if not exists comments_place_idx on public.comments(place_id, created_at desc);
+
+alter table public.comments enable row level security;
+grant select on public.comments to anon, authenticated;
+grant insert, delete on public.comments to authenticated;
+
+drop policy if exists "comments: lecture publique" on public.comments;
+create policy "comments: lecture publique" on public.comments
+  for select to anon, authenticated using (true);
+
+drop policy if exists "comments: ajout de ses commentaires" on public.comments;
+create policy "comments: ajout de ses commentaires" on public.comments
+  for insert to authenticated with check (
+    user_id = auth.uid()
+    and (photo_path is null or photo_path like 'guests/' || auth.uid()::text || '/%' or public.is_editor())
+  );
+
+drop policy if exists "comments: suppr auteur ou éditeurs" on public.comments;
+create policy "comments: suppr auteur ou éditeurs" on public.comments
+  for delete to authenticated using (user_id = auth.uid() or public.is_editor());
+
+-- Photos des visiteurs : chacun écrit et supprime seulement dans son dossier guests/<id>/
+drop policy if exists "photos: visiteurs, lecture de leur dossier" on storage.objects;
+create policy "photos: visiteurs, lecture de leur dossier" on storage.objects
+  for select to authenticated using (
+    bucket_id = 'photos' and (storage.foldername(name))[1] = 'guests' and (storage.foldername(name))[2] = auth.uid()::text);
+
+drop policy if exists "photos: visiteurs, ajout dans leur dossier" on storage.objects;
+create policy "photos: visiteurs, ajout dans leur dossier" on storage.objects
+  for insert to authenticated with check (
+    bucket_id = 'photos' and (storage.foldername(name))[1] = 'guests' and (storage.foldername(name))[2] = auth.uid()::text);
+
+drop policy if exists "photos: visiteurs, suppr dans leur dossier" on storage.objects;
+create policy "photos: visiteurs, suppr dans leur dossier" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'photos' and (storage.foldername(name))[1] = 'guests' and (storage.foldername(name))[2] = auth.uid()::text);
+
 -- =============================================================================
 -- DERNIÈRE ÉTAPE (à faire après avoir créé vos deux comptes dans
 -- Authentication > Users) : déclarez-les comme éditeurs.

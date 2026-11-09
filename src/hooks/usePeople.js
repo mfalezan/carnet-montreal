@@ -9,6 +9,8 @@ export function usePeople(auth) {
   const [names, setNames] = useState({});
   const [reactions, setReactions] = useState([]);
   const [available, setAvailable] = useState(true);
+  const [comments, setComments] = useState([]);
+  const [commentsOn, setCommentsOn] = useState(true);
 
   const reload = useCallback(async () => {
     const data = await api.fetchPeople();
@@ -17,7 +19,13 @@ export function usePeople(auth) {
     setNames(data.names);
     setReactions(data.reactions);
   }, []);
-  useEffect(() => { reload().catch(() => {}); }, [reload]);
+  const reloadComments = useCallback(async () => {
+    const data = await api.fetchComments();
+    if (data === null) { setCommentsOn(false); return; }
+    setCommentsOn(true);
+    setComments(data);
+  }, []);
+  useEffect(() => { reload().catch(() => {}); reloadComments().catch(() => {}); }, [reload, reloadComments]);
 
   const uid = auth.session ? auth.session.user.id : null;
 
@@ -61,7 +69,15 @@ export function usePeople(auth) {
     catch (e) { latest.current = prev; setReactions(prev); throw e; }
   };
 
+  const comment = async (placeId, body, file, userId) => {
+    const who = userId || (me && me.id);
+    if (!who) throw new Error('Identifiez-vous d\u2019abord.');
+    await api.addComment(placeId, who, body, file);
+    await reloadComments();
+  };
+  const uncomment = async (c) => { await api.deleteComment(c); await reloadComments(); };
+
   const forget = async () => { await supabase.auth.signOut(); };
 
-  return { available, names, reactions, me, identify, react, forget, reload };
+  return { available, names, reactions, me, identify, react, forget, reload, comments, commentsOn: available && commentsOn, comment, uncomment };
 }
