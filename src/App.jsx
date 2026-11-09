@@ -6,6 +6,8 @@ import DetailSheet from './components/DetailSheet.jsx';
 import ListSheet from './components/ListSheet.jsx';
 import LoginSheet from './components/LoginSheet.jsx';
 import MenuSheet from './components/MenuSheet.jsx';
+import ConverterSheet from './components/ConverterSheet.jsx';
+import { useRate } from './hooks/useRate.js';
 import { AddSheet, EditSheet } from './components/PlaceSheets.jsx';
 import AddressSearch from './components/AddressSearch.jsx';
 import FilterPanel, { emptyMore, countMore } from './components/FilterPanel.jsx';
@@ -25,6 +27,7 @@ export default function App() {
   const { places, loading, error, reload } = usePlaces();
   const refresh = () => reload().catch(() => {});
   const rt = useRoutes();
+  const fx = useRate();
   const me = usePosition();
   const [nearby, setNearby] = useState(false);
   const placesD = useMemo(() => (me.pos ? places.map((p) => ({ ...p, dist: distance(me.pos, p) })) : places), [places, me.pos]);
@@ -270,6 +273,9 @@ export default function App() {
       { key: 'list', icon: I.list, label: 'Tous les lieux', sub: 'La liste complète, triée et filtrée', badge: places.length || null, onClick: () => openList('places') },
       ...(rt.available || auth.isEditor ? [{ key: 'routes', icon: I.walk, label: 'Parcours', sub: 'Des balades toutes prêtes à suivre', badge: rt.routes.length || null, active: !!routeId, onClick: () => openList('routes') }] : []),
     ] },
+    { title: 'Outils', items: [
+      { key: 'fx', icon: I.money, label: 'Convertisseur $ CA → €', sub: fx.rate ? '1 $ CA = ' + fx.rate.toFixed(2).replace('.', ',') + ' € · taxes et pourboire' : 'Avec taxes et pourboire', active: sheet && sheet.t === 'fx', onClick: () => setSheet({ t: 'fx' }) },
+    ] },
     { title: 'Nous deux', items: auth.isEditor ? [
       { key: 'add', icon: I.plus, label: 'Ajouter un lieu', sub: 'À votre position ou par son adresse', lock: true, onClick: startAdd },
     ] : [] },
@@ -416,6 +422,7 @@ export default function App() {
           onClose={() => (sheet.id ? setSheet({ t: 'route', id: sheet.id }) : (setListTab('routes'), setSheet({ t: 'list' })))}
           onSave={saveRoute} onDelete={removeRoute} />
       )}
+      {sheet && sheet.t === 'fx' && <ConverterSheet fx={fx} onClose={() => setSheet(null)} />}
       {sheet && sheet.t === 'login' && <LoginSheet auth={auth} toast={toast} onClose={() => setSheet(null)} />}
       {detail && (
         <DetailSheet key={detail.id} p={detail} isEditor={auth.isEditor} defaultWho={DEFAULT_WHO} toast={toast} act={act}
