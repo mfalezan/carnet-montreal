@@ -18,7 +18,7 @@ import { usePlaces } from './hooks/usePlaces.js';
 import { usePosition } from './hooks/usePosition.js';
 import { distance, fmtDist } from './lib/geo.js';
 import * as api from './lib/api.js';
-import { errMsg, norm, reduceMotion } from './lib/utils.js';
+import { errMsg, norm, reduceMotion, where } from './lib/utils.js';
 
 const DEFAULT_WHO = 'deux';
 
@@ -39,13 +39,20 @@ export default function App() {
   const [more, setMore] = useState(emptyMore);   // filtres du panneau : saison…
   const [moreOpen, setMoreOpen] = useState(false);
   const nMore = countMore(more);
+  /* Régions présentes dans le carnet, la plus fournie d'abord (Montréal en tête) */
+  const regions = useMemo(() => {
+    const c = {};
+    places.forEach((p) => { c[p.region] = (c[p.region] || 0) + 1; });
+    return Object.entries(c).sort((a, b) => (a[0] === 'Montréal' ? -1 : b[0] === 'Montréal' ? 1 : b[1] - a[1]));
+  }, [places]);
   const nq = norm(q.trim());
   const filtered = placesD.filter((p) => (cat === 'all' || p.cat === cat)
+    && (more.region === 'all' || p.region === more.region)
     && (more.season === 'all' || p.season === more.season || p.season === 'toute')
     && (!more.price.length || more.price.includes(p.price))
     && more.tags.every((t) => p.tags.includes(t))
     && (flag === 'all' || (flag === 'todo' ? !p.visits.length : p.visits.some((v) => v.love)))
-    && (!nq || norm([p.name, p.quartier, p.desc, (CATS[p.cat] || {}).label, ...p.tags.map((t) => TAGS[t] || t), p.metro && p.metro.station, ...p.visits.map((v) => v.note)].join(' ')).includes(nq)));
+    && (!nq || norm([p.name, p.quartier, p.region, p.desc, (CATS[p.cat] || {}).label, ...p.tags.map((t) => TAGS[t] || t), p.metro && p.metro.station, ...p.visits.map((v) => v.note)].join(' ')).includes(nq)));
   /* Parcours affiché sur la carte : ses étapes remplacent les filtres */
   const [routeId, setRouteId] = useState(null);
   const viewRoute = routeId ? rt.routes.find((r) => r.id === routeId) : null;
@@ -105,6 +112,15 @@ export default function App() {
   };
   const openDetail = (id) => { focus(id, { scroll: false }); setSheet({ t: 'detail', id }); };
   const closeDetail = (id) => { setSheet(null); setTimeout(() => scrollToCard(id), 60); };
+
+  /* Choisir une région recadre la carte sur ses lieux */
+  const lastRegion = useRef(more.region);
+  useEffect(() => {
+    if (lastRegion.current === more.region) return;
+    lastRegion.current = more.region;
+    const pts = more.region === 'all' ? placesRef.current.filter((p) => p.region === 'Montréal') : filtered;
+    if (mapApi.current && pts.length) mapApi.current.fitTo(pts);
+  }, [more.region]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---------- Autour de moi ---------- */
   const toggleNearby = async () => {
@@ -297,7 +313,7 @@ export default function App() {
           </span>
           <span className="card-body">
             <span className="card-name">{p.name}</span>
-            <span className="card-meta">{(CATS[p.cat] || {}).label} · {p.quartier}{p.price ? ' · ' + PRICES[p.price] : ''}</span>
+            <span className="card-meta">{(CATS[p.cat] || {}).label} · {where(p)}{p.price ? ' · ' + PRICES[p.price] : ''}</span>
             <span className="card-status">
               {p.visits.length
                 ? <>{loved && <span className="heart"><Ic d={I.heart} size={16} fill /></span>}Testé {p.visits.length}×</>
@@ -378,7 +394,7 @@ export default function App() {
               </button>
               <button type="button" className="chip" aria-pressed={flag === 'todo'} onClick={() => toggle(flag, 'todo', setFlag)}>À faire</button>
             </div>
-            {moreOpen && <FilterPanel more={more} setMore={setMore} count={visible.length} onClose={() => setMoreOpen(false)} />}
+            {moreOpen && <FilterPanel more={more} setMore={setMore} count={visible.length} regions={regions} onClose={() => setMoreOpen(false)} />}
           </div>
         )}
 

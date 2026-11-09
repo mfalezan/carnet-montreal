@@ -1,6 +1,7 @@
 import { CATS, catColor, I, WHO, PRICES } from '../config.js';
 import Ic from './Icon.jsx';
 import { fmtDist } from '../lib/geo.js';
+import { where } from '../lib/utils.js';
 import { routeStops } from './RouteSheets.jsx';
 
 export default function ListSheet({ places, allPlaces, total, onPick, onClose, auth, onLogin, tab = 'places', setTab, routes, routesAvailable, onPickRoute, onNewRoute }) {
@@ -35,7 +36,7 @@ export default function ListSheet({ places, allPlaces, total, onPick, onClose, a
                   </span>
                   <span style={{ minWidth: 0 }}>
                     <span className="lname">{p.name}</span>
-                    <span className="lmeta">{(CATS[p.cat] || {}).label} · {p.quartier}{p.price ? ' · ' + PRICES[p.price] : ''}{p.dist != null ? ' · ' + fmtDist(p.dist) : ''}</span>
+                    <span className="lmeta">{(CATS[p.cat] || {}).label} · {where(p)}{p.price ? ' · ' + PRICES[p.price] : ''}{p.dist != null ? ' · ' + fmtDist(p.dist) : ''}</span>
                   </span>
                   {p.visits.length ? (
                     <span className="card-status" style={{ marginTop: 0 }}>

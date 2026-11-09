@@ -13,6 +13,11 @@ export const SEASONS = { toute: "Toute l'année", ete: "Plutôt l'été", hiver:
 
 export const LINES = { verte: '#008E4F', orange: '#F08123', jaune: '#FFE300', bleue: '#0083CA' };
 
+/* Régions proposées dans le formulaire (on peut en saisir d'autres) */
+export const HOME_REGION = 'Montréal';
+export const REGIONS = ['Montréal', 'Québec', 'Laurentides', 'Cantons-de-l\'Est', 'Charlevoix', 'Mauricie', 'Lanaudière',
+  'Outaouais', 'Saguenay–Lac-Saint-Jean', 'Bas-Saint-Laurent', 'Gaspésie', 'Côte-Nord', 'Ottawa', 'Toronto'];
+
 /* Prix indicatif */
 export const PRICES = { 1: '$', 2: '$$', 3: '$$$' };
 

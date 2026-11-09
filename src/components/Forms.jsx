@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo } from 'react';
-import { CATS, catColor, SEASONS, LINES, WHO, I, PRICES, TAGS } from '../config.js';
+import { CATS, catColor, SEASONS, LINES, WHO, I, PRICES, TAGS, REGIONS } from '../config.js';
 import Ic from './Icon.jsx';
 import { today } from '../lib/utils.js';
 
@@ -70,8 +70,19 @@ export function PlaceFields({ f, set }) {
         </div>
       </div>
       <div className="field">
-        <label htmlFor={id + 'q'}>Quartier</label>
-        <input id={id + 'q'} type="text" value={f.quartier} placeholder="Ex. Mile End" onChange={(e) => set({ ...f, quartier: e.target.value })} />
+        <label htmlFor={id + 'r'}>Région</label>
+        <input id={id + 'r'} type="text" list={id + 'rl'} value={f.region} placeholder="Montréal" autoComplete="off"
+          onChange={(e) => set({ ...f, region: e.target.value })} />
+        <datalist id={id + 'rl'}>{REGIONS.map((r) => <option key={r} value={r} />)}</datalist>
+        <div className="opts">
+          {REGIONS.slice(0, 4).map((r) => (
+            <button type="button" key={r} className="chip" aria-pressed={f.region === r} onClick={() => set({ ...f, region: r })}>{r}</button>
+          ))}
+        </div>
+      </div>
+      <div className="field">
+        <label htmlFor={id + 'q'}>{f.region && f.region !== 'Montréal' ? 'Ville ou village' : 'Quartier'}</label>
+        <input id={id + 'q'} type="text" value={f.quartier} placeholder={f.region && f.region !== 'Montréal' ? 'Ex. Mont-Tremblant' : 'Ex. Mile End'} onChange={(e) => set({ ...f, quartier: e.target.value })} />
       </div>
       <div className="field">
         <span className="lbl">Saison</span>

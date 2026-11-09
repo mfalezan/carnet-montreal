@@ -22,6 +22,7 @@ function toPlace(r) {
     name: r.name,
     cat: r.cat,
     quartier: r.quartier,
+    region: r.region || 'Montréal',
     lat: r.lat,
     lng: r.lng,
     season: r.season,
@@ -48,18 +49,21 @@ export async function fetchPlaces() {
 }
 
 /* Formulaire -> colonnes */
-export const emptyPlaceForm = () => ({ name: '', cat: 'bouffe', quartier: '', season: 'toute', metroStation: '', metroLines: [], desc: '', address: '', link: '', price: null, tags: [] });
+export const emptyPlaceForm = () => ({ name: '', cat: 'bouffe', region: 'Montréal', quartier: '', season: 'toute', metroStation: '', metroLines: [], desc: '', address: '', link: '', price: null, tags: [] });
 
 export const placeToForm = (p) => ({
-  name: p.name, cat: p.cat, quartier: p.quartier === 'Montréal' ? '' : p.quartier, season: p.season,
+  name: p.name, cat: p.cat, region: p.region, quartier: p.quartier === 'Montréal' || p.quartier === p.region ? '' : p.quartier, season: p.season,
   metroStation: p.metro ? p.metro.station : '', metroLines: p.metro ? p.metro.lines.slice() : [],
   desc: p.desc, address: p.address, link: p.link, price: p.price, tags: p.tags.slice(),
 });
 
-const formToRow = (f) => ({
+const formToRow = (f) => {
+  const region = (f.region || '').trim() || 'Montréal';
+  return {
   name: f.name.trim(),
   cat: f.cat,
-  quartier: f.quartier.trim() || 'Montréal',
+  region,
+  quartier: f.quartier.trim() || region,
   season: f.season,
   metro_station: f.metroStation.trim() || null,
   metro_lines: f.metroLines,
@@ -68,7 +72,8 @@ const formToRow = (f) => ({
   link: f.link.trim() || null,
   price: f.price || null,
   tags: f.tags,
-});
+  };
+};
 
 export async function createPlace(form, pos) {
   const { data, error } = await supabase.from('places').insert({ ...formToRow(form), lat: pos.lat, lng: pos.lng }).select('id').single();

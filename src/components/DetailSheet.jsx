@@ -3,6 +3,7 @@ import { CATS, catColor, SEASONS, LINES, WHO, I, PRICES, TAGS } from '../config.
 import Ic from './Icon.jsx';
 import { VisitFields, newVisit } from './Forms.jsx';
 import { fmtDist } from '../lib/geo.js';
+import { where } from '../lib/utils.js';
 import { errMsg, fmtCoord, fmtDate, gmapsUrl, placeUrl, safeLink } from '../lib/utils.js';
 
 /* Fiche d'un lieu. Les actions d'édition n'apparaissent que pour les éditeurs. */
@@ -28,7 +29,7 @@ export default function DetailSheet({ p, isEditor, defaultWho, onClose, onEdit, 
   const share = async () => {
     const url = placeUrl(p);
     try {
-      if (navigator.share) { await navigator.share({ title: p.name, text: p.name + ' — ' + p.quartier + ', Montréal', url }); return; }
+      if (navigator.share) { await navigator.share({ title: p.name, text: p.name + ' — ' + where(p) + (p.region === 'Montréal' ? ', Montréal' : ''), url }); return; }
       await navigator.clipboard.writeText(p.name + ' — ' + url);
       toast('Lien copié');
     } catch (e) {
@@ -70,7 +71,7 @@ export default function DetailSheet({ p, isEditor, defaultWho, onClose, onEdit, 
         </div>
         {!p.cover && <span className="hero-mark"><Ic d={I[p.cat]} size={200} sw={1.6} /></span>}
         <h2>{p.name}</h2>
-        <p>{(CATS[p.cat] || {}).label} · {p.quartier}{p.price ? ' · ' + PRICES[p.price] : ''}</p>
+        <p>{(CATS[p.cat] || {}).label} · {where(p)}{p.price ? ' · ' + PRICES[p.price] : ''}</p>
       </header>
 
       <div className="content">

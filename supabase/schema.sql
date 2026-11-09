@@ -36,7 +36,8 @@ create table if not exists public.places (
   id            uuid primary key default gen_random_uuid(),
   name          text not null check (length(trim(name)) > 0),
   cat           text not null check (cat in ('bouffe', 'vues', 'culture', 'parcs', 'sorties')),
-  quartier      text not null default 'Montréal',
+  quartier      text not null default 'Montréal',     -- quartier, ou ville hors de Montréal
+  region        text not null default 'Montréal' check (length(trim(region)) > 0),  -- migration 004
   lat           double precision not null check (lat between -90 and 90),
   lng           double precision not null check (lng between -180 and 180),
   season        text not null default 'toute' check (season in ('toute', 'ete', 'hiver')),
@@ -59,6 +60,7 @@ create table if not exists public.places (
 -- -----------------------------------------------------------------------------
 -- Pour une base créée avant ces colonnes, voir supabase/migrations/002_etiquettes_prix.sql
 create index if not exists places_tags_idx on public.places using gin (tags);
+create index if not exists places_region_idx on public.places (region);
 
 create table if not exists public.visits (
   id          uuid primary key default gen_random_uuid(),

@@ -1,8 +1,8 @@
 import { I, PRICES, TAGS } from '../config.js';
 import Ic from './Icon.jsx';
 
-export const emptyMore = () => ({ season: 'all', price: [], tags: [] });
-export const countMore = (m) => (m.season !== 'all' ? 1 : 0) + (m.price.length ? 1 : 0) + m.tags.length;
+export const emptyMore = () => ({ region: 'all', season: 'all', price: [], tags: [] });
+export const countMore = (m) => (m.region !== 'all' ? 1 : 0) + (m.season !== 'all' ? 1 : 0) + (m.price.length ? 1 : 0) + m.tags.length;
 const flip = (list, v) => (list.includes(v) ? list.filter((x) => x !== v) : list.concat([v]));
 
 const SEASON_OPTS = [['all', 'Toutes'], ['ete', 'Été'], ['hiver', 'Hiver']];
@@ -11,14 +11,27 @@ const SEASON_OPTS = [['all', 'Toutes'], ['ete', 'Été'], ['hiver', 'Hiver']];
 export const currentSeason = () => { const m = new Date().getMonth(); return m >= 10 || m <= 2 ? 'hiver' : 'ete'; };
 
 /* Panneau « Plus de filtres » sous la barre de recherche */
-export default function FilterPanel({ more, setMore, count, onClose }) {
+export default function FilterPanel({ more, setMore, count, regions = [], onClose }) {
   const now = currentSeason();
   return (
     <div className="fpanel" role="dialog" aria-label="Plus de filtres">
       <div className="fpanel-head">
-        <span className="lbl">Saison</span>
+        <span className="lbl">{regions.length > 1 ? 'Région' : 'Saison'}</span>
         <button type="button" className="clear" aria-label="Fermer les filtres" onClick={onClose}><Ic d={I.close} size={18} /></button>
       </div>
+      {regions.length > 1 && (
+        <>
+          <div className="opts">
+            <button type="button" className="chip" aria-pressed={more.region === 'all'} onClick={() => setMore({ ...more, region: 'all' })}>Partout</button>
+            {regions.map(([r, n]) => (
+              <button type="button" key={r} className="chip" aria-pressed={more.region === r} onClick={() => setMore({ ...more, region: more.region === r ? 'all' : r })}>
+                {r} <span className="chip-n">{n}</span>
+              </button>
+            ))}
+          </div>
+          <span className="lbl">Saison</span>
+        </>
+      )}
       <div className="opts">
         {SEASON_OPTS.map(([k, l]) => (
           <button type="button" key={k} className="chip" aria-pressed={more.season === k} onClick={() => setMore({ ...more, season: k })}>
