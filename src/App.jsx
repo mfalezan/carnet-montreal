@@ -5,6 +5,7 @@ import MapView from './components/MapView.jsx';
 import DetailSheet from './components/DetailSheet.jsx';
 import ListSheet from './components/ListSheet.jsx';
 import LoginSheet from './components/LoginSheet.jsx';
+import MenuSheet from './components/MenuSheet.jsx';
 import { AddSheet, EditSheet } from './components/PlaceSheets.jsx';
 import AddressSearch from './components/AddressSearch.jsx';
 import FilterPanel, { emptyMore, countMore } from './components/FilterPanel.jsx';
@@ -58,6 +59,7 @@ export default function App() {
   const selRef = useRef(null); selRef.current = selId;
   const [sheet, setSheet] = useState(null);     // { t: 'list' | 'detail' | 'login' | 'route' | 'routeEdit', id? }
   const [listTab, setListTab] = useState('places');
+  const [menuOpen, setMenuOpen] = useState(false);
   const [flow, setFlow] = useState(null);       // { kind: 'add' } | { kind: 'edit', id }
   const [draft, setDraft] = useState(null);     // position en cours de saisie
   const [picking, setPicking] = useState(false); // la carte attend un toucher
@@ -248,7 +250,8 @@ export default function App() {
   useEffect(() => {
     const fn = (e) => {
       if (e.key !== 'Escape') return;
-      if (flow) { if (picking) backFromPicking(); else cancelFlow(); }
+      if (menuOpen) setMenuOpen(false);
+      else if (flow) { if (picking) backFromPicking(); else cancelFlow(); }
       else if (sheet) setSheet(null);
       else if (routeId) exitRoute();
     };
@@ -258,6 +261,22 @@ export default function App() {
 
   const detail = !flow && sheet && sheet.t === 'detail' ? placesD.find((p) => p.id === sheet.id) : null;
   const editPlace = flow && flow.kind === 'edit' ? places.find((p) => p.id === flow.id) : null;
+
+  /* ---------- Menu ---------- */
+  const openList = (tab) => { setListTab(tab); setSheet({ t: 'list' }); };
+  const menuSections = [
+    { title: 'Explorer', items: [
+      { key: 'map', icon: I.map, label: 'La carte', sub: 'Nos adresses autour de vous', active: !sheet && !routeId, onClick: () => { setSheet(null); exitRoute(); } },
+      { key: 'list', icon: I.list, label: 'Tous les lieux', sub: 'La liste complète, triée et filtrée', badge: places.length || null, onClick: () => openList('places') },
+      ...(rt.available || auth.isEditor ? [{ key: 'routes', icon: I.walk, label: 'Parcours', sub: 'Des balades toutes prêtes à suivre', badge: rt.routes.length || null, active: !!routeId, onClick: () => openList('routes') }] : []),
+    ] },
+    { title: 'Nous deux', items: auth.isEditor ? [
+      { key: 'add', icon: I.plus, label: 'Ajouter un lieu', sub: 'À votre position ou par son adresse', lock: true, onClick: startAdd },
+    ] : [] },
+  ];
+  const menuFooter = auth.isEditor
+    ? <button type="button" className="menu-item" onClick={() => { setMenuOpen(false); setSheet({ t: 'login' }); }}><span className="menu-ic"><Ic d={I.user} size={22} /></span><span className="menu-txt"><b>Mon compte</b><small>{auth.email}</small></span></button>
+    : <button type="button" className="menu-item" onClick={() => { setMenuOpen(false); setSheet({ t: 'login' }); }}><span className="menu-ic"><Ic d={I.lock} size={22} /></span><span className="menu-txt"><b>Connexion</b><small>Pour Matthieu et Azéline</small></span></button>;
 
   /* ---------- Rendu ---------- */
   let carouselBody;
@@ -303,8 +322,8 @@ export default function App() {
   return (
     <div className="app">
       <header className="top">
-        <button className="circle" type="button" aria-label="Voir la liste des lieux" onClick={() => setSheet({ t: 'list' })} disabled={!!flow}>
-          <Ic d={I.list} />
+        <button className="circle" type="button" aria-label="Menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)} disabled={!!flow}>
+          <Ic d={I.menu} />
         </button>
         <div className="logo" aria-label="Le Carnet, Montréal"><b>Le Carnet</b><small>Montréal · testé à deux</small></div>
         {flow
@@ -377,6 +396,7 @@ export default function App() {
         )}
       </div>
 
+      {menuOpen && <MenuSheet sections={menuSections} footer={menuFooter} onClose={() => setMenuOpen(false)} />}
       {sheet && sheet.t === 'list' && (
         <ListSheet places={routePlaces ? filtered : visible} allPlaces={placesD} total={places.length} auth={auth} onClose={() => setSheet(null)}
           onLogin={() => setSheet({ t: 'login' })}
