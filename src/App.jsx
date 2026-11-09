@@ -100,15 +100,41 @@ export default function App() {
   const toastT = useRef(0);
   const toast = (m) => { setToastMsg(m); clearTimeout(toastT.current); toastT.current = setTimeout(() => setToastMsg(''), 2800); };
 
-  const mapApi = useRef(null), carRef = useRef(null), prog = useRef(0), scrollT = useRef(0);
+  const mapApi = useRef(null), carRef = useRef(null), prog = useRef(null), scrollT = useRef(0);
   const placesRef = useRef(places); placesRef.current = places;
 
-  /* ---------- Carte <-> carrousel ---------- */
+  /* ---------- Carte <-> carrousel ----------
+     Quand l'app fait défiler le carrousel elle-même (épingle touchée, retour de fiche), ce
+     défilement ne doit jamais changer la sélection. Safari sur iPhone arrête parfois un défilement
+     doux trop tôt dans un carrousel aimanté (scroll-snap) : on coupe l'aimantation le temps du
+     défilement, puis on vérifie qu'on est bien arrivé sur la carte et on la recale sinon. */
+  const finishProg = () => {
+    const pr = prog.current, car = carRef.current;
+    if (!pr) return;
+    clearTimeout(pr.timer);
+    prog.current = null;
+    if (!car) return;
+    if (Math.abs(car.scrollLeft - pr.target) > 2) car.scrollTo({ left: pr.target, behavior: 'auto' });
+    requestAnimationFrame(() => { car.style.scrollSnapType = ''; });
+  };
   const scrollToCard = (id) => {
-    const el = carRef.current && carRef.current.querySelector('[data-id="' + id + '"]');
+    const car = carRef.current;
+    const el = car && car.querySelector('[data-id="' + id + '"]');
     if (!el) return;
-    prog.current = Date.now();
-    el.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', inline: 'center', block: 'nearest' });
+    const max = car.scrollWidth - car.clientWidth;
+    const target = Math.max(0, Math.min(max, el.offsetLeft + el.offsetWidth / 2 - car.clientWidth / 2));
+    if (prog.current) clearTimeout(prog.current.timer);
+    if (Math.abs(car.scrollLeft - target) < 2) { prog.current = null; car.style.scrollSnapType = ''; return; }
+    car.style.scrollSnapType = 'none';
+    prog.current = { target, timer: setTimeout(finishProg, reduceMotion() ? 100 : 1500) };
+    car.scrollTo({ left: target, behavior: reduceMotion() ? 'auto' : 'smooth' });
+  };
+  /* Si la personne touche le carrousel pendant un défilement automatique, elle reprend la main */
+  const userTakesOver = () => {
+    if (!prog.current) return;
+    clearTimeout(prog.current.timer);
+    prog.current = null;
+    if (carRef.current) carRef.current.style.scrollSnapType = '';
   };
   const focus = (id, opts = {}) => {
     const p = placesRef.current.find((x) => x.id === id);
@@ -120,15 +146,26 @@ export default function App() {
   const onCarScroll = () => {
     clearTimeout(scrollT.current);
     scrollT.current = setTimeout(() => {
-      if (Date.now() - prog.current < 800) return;
       const el = carRef.current;
       if (!el) return;
-      const box = el.getBoundingClientRect(), mid = box.left + box.width / 2;
-      let best = null, bd = 1e9;
-      el.querySelectorAll('[data-id]').forEach((c) => {
-        const r = c.getBoundingClientRect(), d = Math.abs(r.left + r.width / 2 - mid);
-        if (d < bd) { bd = d; best = c.getAttribute('data-id'); }
-      });
+      if (prog.current) { // défilement automatique : on attend qu'il arrive, sans toucher à la sélection
+        if (Math.abs(el.scrollLeft - prog.current.target) <= 2) finishProg();
+        return;
+      }
+      const cards = el.querySelectorAll('[data-id]');
+      if (!cards.length) return;
+      // aux extrémités, la première / dernière carte ne peut pas être centrée : on la prend quand même
+      let best = null;
+      if (el.scrollLeft <= 2) best = cards[0].getAttribute('data-id');
+      else if (el.scrollLeft >= el.scrollWidth - el.clientWidth - 2) best = cards[cards.length - 1].getAttribute('data-id');
+      else {
+        const box = el.getBoundingClientRect(), mid = box.left + box.width / 2;
+        let bd = 1e9;
+        cards.forEach((c) => {
+          const r = c.getBoundingClientRect(), d = Math.abs(r.left + r.width / 2 - mid);
+          if (d < bd) { bd = d; best = c.getAttribute('data-id'); }
+        });
+      }
       if (best && best !== selRef.current) focus(best, { scroll: false });
     }, 140);
   };
@@ -463,7 +500,7 @@ export default function App() {
           <button className="circle" type="button" aria-label="Ma position" onClick={() => mapApi.current && mapApi.current.locate()}><Ic d={I.locate} /></button>
         </div>
 
-        {!flow && <div className="carousel" ref={carRef} onScroll={onCarScroll}>{carouselBody}</div>}
+        {!flow && <div className="carousel" ref={carRef} onScroll={onCarScroll} onPointerDown={userTakesOver} onWheel={userTakesOver}>{carouselBody}</div>}
 
         {picking && (
           <div className="placebar">
