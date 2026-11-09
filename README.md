@@ -14,7 +14,12 @@ Nos adresses testées à Montréal, sur une carte. Web app installable sur tél�
 | Fiche | Verdict, itinéraire Google Maps, infos métro / saison / adresse / lien, photos, historique des visites, partage d'un lien direct (`/?lieu=…`) |
 | Écriture | Ajout à sa position GPS ou en touchant la carte, modification (y compris déplacer le point), visites, photos multiples avec couverture, suppression |
 | Parcours | Listes ordonnées de lieux (« Un dimanche sur le Plateau »), affichées sur la carte avec étapes numérotées et tracé, itinéraire à pied, lien direct (`/?parcours=…`) |
-| Comptes | E-mail + mot de passe Supabase, écriture réservée aux comptes de la table `editors` |
+| Menu | Bouton en haut à gauche : toutes les fonctionnalités, avec un cadenas sur ce qui est réservé à vous deux |
+| Régions | Lieux hors de Montréal (Québec, Laurentides…), filtre par région, recherche d'adresse au Québec et en Ontario |
+| Avis des visiteurs | Prénom sans mot de passe (compte anonyme Supabase), « j'aime », « à faire / fait », commentaires avec photo, « Ma liste » |
+| Convertisseur | $ CA ↔ €, taxes du Québec et pourboire, taux BCE (Frankfurter) gardé hors connexion |
+| Calendrier | Qui vient vous voir et quand, visible et modifiable par vous deux seulement |
+| Comptes | E-mail + mot de passe Supabase, écriture réservée aux comptes de la table `editors` | ; visiteurs : simple prénom
 | Photos | Redimensionnées dans le téléphone avant envoi (1600 px + miniature 480 px), stockées dans Supabase Storage |
 
 ```
