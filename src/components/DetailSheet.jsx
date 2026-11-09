@@ -2,12 +2,13 @@ import { useRef, useState } from 'react';
 import { CATS, catColor, SEASONS, LINES, WHO, I, PRICES, TAGS } from '../config.js';
 import Ic from './Icon.jsx';
 import { VisitFields, newVisit } from './Forms.jsx';
+import { ReactionBar } from './People.jsx';
 import { fmtDist } from '../lib/geo.js';
 import { where } from '../lib/utils.js';
 import { errMsg, fmtCoord, fmtDate, gmapsUrl, placeUrl, safeLink } from '../lib/utils.js';
 
 /* Fiche d'un lieu. Les actions d'édition n'apparaissent que pour les éditeurs. */
-export default function DetailSheet({ p, isEditor, defaultWho, onClose, onEdit, act, toast }) {
+export default function DetailSheet({ p, isEditor, defaultWho, onClose, onEdit, act, toast, people, onReact }) {
   const [visitForm, setVisitForm] = useState(null); // { id?, d, who, love, note }
   const [busy, setBusy] = useState('');
   const [confirm, setConfirm] = useState(false);
@@ -95,6 +96,13 @@ export default function DetailSheet({ p, isEditor, defaultWho, onClose, onEdit, 
         </div>
 
         <a className="pill" href={gmapsUrl(p)} target="_blank" rel="noopener noreferrer"><Ic d={I.route} /> Itinéraire</a>
+
+        {people && people.available && (
+          <>
+            <h3 className="h-sec">Et vous ?</h3>
+            <ReactionBar p={p} people={people} onReact={onReact} />
+          </>
+        )}
 
         <h3 className="h-sec">Le lieu</h3>
         {p.desc && <p className="desc">{p.desc}</p>}

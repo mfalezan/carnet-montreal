@@ -24,6 +24,7 @@ export function useAuth() {
   return {
     session,
     email: session ? session.user.email : null,
+    anonymous: !!(session && session.user.is_anonymous),
     editor,
     isEditor: !!editor,
     signIn: async (email, password) => {

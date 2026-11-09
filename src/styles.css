@@ -340,3 +340,28 @@ code{font-size:.92em;background:var(--tan-soft);padding:1px 5px;border-radius:5p
 .stay-body b{font-size:16px}
 .stay-body small{color:var(--muted);font-size:13.5px}
 .stay-note{font-size:14px;margin-top:3px}
+
+/* Personnes : j'aime, à faire, fait */
+.circle.avatar{background:var(--ink);color:var(--cream);border-color:var(--ink);font:700 18px/1 var(--f-body)}
+.react{display:flex;flex-direction:column;gap:10px}
+.react-btns{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.react-btn{display:flex;align-items:center;justify-content:center;gap:7px;min-height:48px;padding:0 10px;border-radius:999px;border:1.5px solid var(--tan);background:var(--paper);font-weight:700;font-size:15px;cursor:pointer;color:var(--ink);white-space:nowrap}
+.react-btn:hover{border-color:var(--ink)}
+.react-btn.on{background:var(--ink);border-color:var(--ink);color:var(--cream)}
+.react-btn.like.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.react-btn.like:not(.on) svg{color:var(--accent)}
+.react-n{font-variant-numeric:tabular-nums;opacity:.8;font-weight:600}
+.react-who{margin:0;color:var(--muted);font-size:14.5px}
+.likes{display:inline-flex;align-items:center;gap:3px;color:var(--accent);font-weight:700;font-size:13px;font-variant-numeric:tabular-nums}
+.likes + .dist,.card-status .likes{margin-left:auto}
+.card-status .likes + .dist{margin-left:8px}
+.prompt-wrap{position:fixed;inset:0;z-index:45;background:rgb(42 31 21 / .45);display:flex;align-items:flex-end;justify-content:center;animation:fade .2s ease}
+.prompt{width:100%;max-width:480px;background:var(--cream);border-radius:26px 26px 0 0;padding:22px 20px calc(20px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:12px;box-shadow:0 -10px 40px rgb(0 0 0 / .2);animation:up .26s cubic-bezier(.2,.8,.2,1)}
+@media (min-width:600px){.prompt-wrap{align-items:center}.prompt{border-radius:26px}}
+.prompt-t{margin:0;font:400 32px/1 var(--f-display);color:var(--accent);text-transform:uppercase}
+.me-card{display:flex;align-items:center;gap:14px;border:1.5px solid var(--tan);background:var(--paper);border-radius:20px;padding:14px}
+.me-avatar{width:52px;height:52px;border-radius:50%;background:var(--ink);color:var(--cream);display:grid;place-items:center;font:700 22px/1 var(--f-body);flex:none}
+.me-txt{flex:1;min-width:0;display:flex;flex-direction:column}
+.me-txt b{font-size:18px}
+.me-txt small{color:var(--muted)}
+.h-n{font:700 15px var(--f-body);color:var(--muted);vertical-align:middle;margin-left:4px}

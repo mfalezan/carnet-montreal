@@ -10,6 +10,8 @@ import ConverterSheet from './components/ConverterSheet.jsx';
 import { useRate } from './hooks/useRate.js';
 import CalendarSheet, { fmtStay } from './components/CalendarSheet.jsx';
 import { useStays } from './hooks/useStays.js';
+import { usePeople } from './hooks/usePeople.js';
+import { NamePrompt, ProfileSheet } from './components/People.jsx';
 import { AddSheet, EditSheet } from './components/PlaceSheets.jsx';
 import AddressSearch from './components/AddressSearch.jsx';
 import FilterPanel, { emptyMore, countMore } from './components/FilterPanel.jsx';
@@ -31,9 +33,25 @@ export default function App() {
   const rt = useRoutes();
   const fx = useRate();
   const cal = useStays(auth.isEditor);
+  const people = usePeople(auth);
   const me = usePosition();
   const [nearby, setNearby] = useState(false);
-  const placesD = useMemo(() => (me.pos ? places.map((p) => ({ ...p, dist: distance(me.pos, p) })) : places), [places, me.pos]);
+  /* Lieux enrichis : distance, réactions de chacun, et la mienne */
+  const myId = people.me ? people.me.id : null;
+  const placesD = useMemo(() => {
+    const byPlace = {};
+    people.reactions.forEach((r) => { (byPlace[r.place_id] = byPlace[r.place_id] || []).push(r); });
+    return places.map((p) => {
+      const reactions = byPlace[p.id] || [];
+      return {
+        ...p,
+        dist: me.pos ? distance(me.pos, p) : undefined,
+        reactions,
+        likes: reactions.filter((r) => r.liked).length,
+        mine: myId ? reactions.find((r) => r.user_id === myId) || null : null,
+      };
+    });
+  }, [places, me.pos, people.reactions, myId]);
 
   /* ---------- Recherche et filtres ---------- */
   const [q, setQ] = useState('');
@@ -51,6 +69,7 @@ export default function App() {
   const nq = norm(q.trim());
   const filtered = placesD.filter((p) => (cat === 'all' || p.cat === cat)
     && (more.region === 'all' || p.region === more.region)
+    && (more.mine === 'all' || !people.me || (p.mine && (more.mine === 'like' ? p.mine.liked : p.mine.status === more.mine)))
     && (more.season === 'all' || p.season === more.season || p.season === 'toute')
     && (!more.price.length || more.price.includes(p.price))
     && more.tags.every((t) => p.tags.includes(t))
@@ -284,10 +303,28 @@ export default function App() {
   const detail = !flow && sheet && sheet.t === 'detail' ? placesD.find((p) => p.id === sheet.id) : null;
   const editPlace = flow && flow.kind === 'edit' ? places.find((p) => p.id === flow.id) : null;
 
+  /* ---------- Personnes : il faut un prénom pour aimer, cocher ou commenter ---------- */
+  const [ask, setAsk] = useState(null); // action en attente du prénom
+  const requireMe = (action) => {
+    if (!people.available) { toast("Les avis par personne ne sont pas encore activés sur ce carnet."); return; }
+    if (people.me) { action(people.me); return; }
+    setAsk({ action });
+  };
+  const onIdentified = async (name) => {
+    const id = await people.identify(name);
+    const pending = ask;
+    setAsk(null);
+    toast('Bienvenue ' + name + ' !');
+    if (pending) setTimeout(() => pending.action({ id, name }), 0);
+  };
+  const reactOn = (placeId) => (patch) => requireMe((who) => people.react(placeId, patch, who.id).catch((e) => toast(errMsg(e))));
+
   /* ---------- Menu ---------- */
   const openList = (tab) => { setListTab(tab); setSheet({ t: 'list' }); };
   const todayStr = today();
   const nextStay = cal.stays.find((st) => st.end >= todayStr);
+  const mineN = (f) => placesD.filter((p) => p.mine && f(p.mine)).length;
+  const myCounts = mineN((m) => m.status === 'a_faire') + ' à faire · ' + mineN((m) => m.status === 'fait') + ' fait' + (mineN((m) => m.status === 'fait') > 1 ? 's' : '') + ' · ' + mineN((m) => m.liked) + " j'aime";
   const menuSections = [
     { title: 'Explorer', items: [
       { key: 'map', icon: I.map, label: 'La carte', sub: 'Nos adresses autour de vous', active: !sheet && !routeId, onClick: () => { setSheet(null); exitRoute(); } },
@@ -297,6 +334,10 @@ export default function App() {
     { title: 'Outils', items: [
       { key: 'fx', icon: I.money, label: 'Convertisseur $ CA → €', sub: fx.rate ? '1 $ CA = ' + fx.rate.toFixed(2).replace('.', ',') + ' € · taxes et pourboire' : 'Avec taxes et pourboire', active: sheet && sheet.t === 'fx', onClick: () => setSheet({ t: 'fx' }) },
     ] },
+    { title: 'Vous', items: people.available ? [
+      { key: 'me', icon: I.bookmark, label: people.me ? 'Ma liste · ' + people.me.name : 'Ma liste', active: sheet && sheet.t === 'me', onClick: () => setSheet({ t: 'me' }),
+        sub: people.me ? myCounts : 'Choisissez un prénom pour aimer et cocher des lieux' },
+    ] : [] },
     { title: 'Nous deux', items: auth.isEditor ? [
       { key: 'cal', icon: I.calendar, label: 'Calendrier des visites', lock: true, active: sheet && sheet.t === 'cal', onClick: () => setSheet({ t: 'cal' }),
         sub: nextStay ? (nextStay.start <= todayStr ? 'En ce moment : ' : 'Prochaine : ') + nextStay.guests + ', ' + fmtStay(nextStay) : 'Qui vient vous voir, et quand' },
@@ -325,6 +366,7 @@ export default function App() {
               {p.visits.length
                 ? <>{loved && <span className="heart"><Ic d={I.heart} size={16} fill /></span>}Testé {p.visits.length}×</>
                 : <span className="todo-tag">À faire</span>}
+              {p.likes > 0 && <span className="likes" aria-label={p.likes + " j'aime"}><Ic d={I.heart} size={13} fill />{p.likes}</span>}
               {p.dist != null && <span className="dist">{fmtDist(p.dist)}</span>}
             </span>
           </span>
@@ -359,7 +401,9 @@ export default function App() {
           ? <button className="circle" type="button" aria-label="Annuler" onClick={cancelFlow}><Ic d={I.close} /></button>
           : auth.isEditor
             ? <button className="circle accent" type="button" aria-label="Ajouter un lieu" onClick={startAdd}><Ic d={I.plus} /></button>
-            : <button className="circle" type="button" aria-label="Connexion" onClick={() => setSheet({ t: 'login' })}><Ic d={I.user} /></button>}
+            : <button className={'circle' + (people.me ? ' avatar' : '')} type="button" aria-label={people.me ? 'Ma liste (' + people.me.name + ')' : 'Mon profil'} onClick={() => setSheet({ t: 'me' })}>
+                {people.me ? people.me.name.slice(0, 1).toUpperCase() : <Ic d={I.user} />}
+              </button>}
       </header>
 
       <div className={'stage' + (picking ? ' picking' : '')}>
@@ -401,7 +445,7 @@ export default function App() {
               </button>
               <button type="button" className="chip" aria-pressed={flag === 'todo'} onClick={() => toggle(flag, 'todo', setFlag)}>À faire</button>
             </div>
-            {moreOpen && <FilterPanel more={more} setMore={setMore} count={visible.length} regions={regions} onClose={() => setMoreOpen(false)} />}
+            {moreOpen && <FilterPanel more={more} setMore={setMore} count={visible.length} regions={regions} me={people.available ? people.me : null} onClose={() => setMoreOpen(false)} />}
           </div>
         )}
 
@@ -450,10 +494,16 @@ export default function App() {
           onSave={async (st) => { await api.saveStay(st); await cal.reload(); }}
           onDelete={async (id) => { await api.deleteStay(id); await cal.reload(); }} />
       )}
+      {sheet && sheet.t === 'me' && (
+        <ProfileSheet people={people} places={placesD} auth={auth} toast={toast} onClose={() => setSheet(null)}
+          onIdentify={(name) => people.identify(name)} onLogin={() => setSheet({ t: 'login' })}
+          onPick={(id) => { setRouteId(null); openDetail(id); }} />
+      )}
       {sheet && sheet.t === 'fx' && <ConverterSheet fx={fx} onClose={() => setSheet(null)} />}
       {sheet && sheet.t === 'login' && <LoginSheet auth={auth} toast={toast} onClose={() => setSheet(null)} />}
       {detail && (
         <DetailSheet key={detail.id} p={detail} isEditor={auth.isEditor} defaultWho={DEFAULT_WHO} toast={toast} act={act}
+          people={people} onReact={reactOn(detail.id)}
           onClose={() => closeDetail(detail.id)} onEdit={() => openEdit(detail.id)} />
       )}
       {flow && flow.kind === 'add' && draft && (
@@ -462,6 +512,7 @@ export default function App() {
       {editPlace && draft && (
         <EditSheet key={editPlace.id} place={editPlace} pos={draft} prefill={prefill} hidden={picking} onClose={cancelFlow} onMove={() => setPicking(true)} onSave={saveEdit} />
       )}
+      {ask && <NamePrompt onSubmit={onIdentified} onClose={() => setAsk(null)} onLogin={() => { setAsk(null); setSheet({ t: 'login' }); }} />}
       {toastMsg && <div className="toast" role="status">{toastMsg}</div>}
     </div>
   );

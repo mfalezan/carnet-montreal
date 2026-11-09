@@ -211,3 +211,35 @@ export async function deleteStay(id) {
   const { error } = await supabase.from('stays').delete().eq('id', id);
   if (error) throw error;
 }
+
+/* ---------- Personnes : prénoms et réactions (j'aime, fait / à faire) ---------- */
+
+/* Renvoie null si la migration 006 n'a pas encore été exécutée */
+export async function fetchPeople() {
+  const [pr, re] = await Promise.all([
+    supabase.from('profiles').select('user_id, name'),
+    supabase.from('place_reactions').select('place_id, user_id, liked, status'),
+  ]);
+  const err = pr.error || re.error;
+  if (err) { if (missingTable(err)) return null; throw err; }
+  const names = {};
+  pr.data.forEach((x) => { names[x.user_id] = x.name; });
+  return { names, reactions: re.data };
+}
+
+export async function saveProfile(userId, name) {
+  const { error } = await supabase.from('profiles').upsert({ user_id: userId, name: name.trim() }, { onConflict: 'user_id' });
+  if (error) throw error;
+}
+
+/* Réaction d'une personne sur un lieu ; une réaction vide est supprimée */
+export async function saveReaction(placeId, userId, r) {
+  if (!r.liked && !r.status) {
+    const { error } = await supabase.from('place_reactions').delete().eq('place_id', placeId).eq('user_id', userId);
+    if (error) throw error;
+    return;
+  }
+  const { error } = await supabase.from('place_reactions')
+    .upsert({ place_id: placeId, user_id: userId, liked: !!r.liked, status: r.status || null }, { onConflict: 'place_id,user_id' });
+  if (error) throw error;
+}

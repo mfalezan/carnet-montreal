@@ -1,8 +1,8 @@
 import { I, PRICES, TAGS } from '../config.js';
 import Ic from './Icon.jsx';
 
-export const emptyMore = () => ({ region: 'all', season: 'all', price: [], tags: [] });
-export const countMore = (m) => (m.region !== 'all' ? 1 : 0) + (m.season !== 'all' ? 1 : 0) + (m.price.length ? 1 : 0) + m.tags.length;
+export const emptyMore = () => ({ mine: 'all', region: 'all', season: 'all', price: [], tags: [] });
+export const countMore = (m) => (m.mine !== 'all' ? 1 : 0) + (m.region !== 'all' ? 1 : 0) + (m.season !== 'all' ? 1 : 0) + (m.price.length ? 1 : 0) + m.tags.length;
 const flip = (list, v) => (list.includes(v) ? list.filter((x) => x !== v) : list.concat([v]));
 
 const SEASON_OPTS = [['all', 'Toutes'], ['ete', 'Été'], ['hiver', 'Hiver']];
@@ -11,14 +11,26 @@ const SEASON_OPTS = [['all', 'Toutes'], ['ete', 'Été'], ['hiver', 'Hiver']];
 export const currentSeason = () => { const m = new Date().getMonth(); return m >= 10 || m <= 2 ? 'hiver' : 'ete'; };
 
 /* Panneau « Plus de filtres » sous la barre de recherche */
-export default function FilterPanel({ more, setMore, count, regions = [], onClose }) {
+const MINE_OPTS = [['all', 'Tout'], ['like', "J'aime"], ['a_faire', 'À faire'], ['fait', 'Fait']];
+
+export default function FilterPanel({ more, setMore, count, regions = [], me, onClose }) {
   const now = currentSeason();
   return (
     <div className="fpanel" role="dialog" aria-label="Plus de filtres">
       <div className="fpanel-head">
-        <span className="lbl">{regions.length > 1 ? 'Région' : 'Saison'}</span>
+        <span className="lbl">{me ? 'Ma liste · ' + me.name : regions.length > 1 ? 'Région' : 'Saison'}</span>
         <button type="button" className="clear" aria-label="Fermer les filtres" onClick={onClose}><Ic d={I.close} size={18} /></button>
       </div>
+      {me && (
+        <>
+          <div className="opts">
+            {MINE_OPTS.map(([k, l]) => (
+              <button type="button" key={k} className="chip" aria-pressed={more.mine === k} onClick={() => setMore({ ...more, mine: k })}>{l}</button>
+            ))}
+          </div>
+          {regions.length > 1 && <span className="lbl">Région</span>}
+        </>
+      )}
       {regions.length > 1 && (
         <>
           <div className="opts">
@@ -29,9 +41,9 @@ export default function FilterPanel({ more, setMore, count, regions = [], onClos
               </button>
             ))}
           </div>
-          <span className="lbl">Saison</span>
         </>
       )}
+      {(me || regions.length > 1) && <span className="lbl">Saison</span>}
       <div className="opts">
         {SEASON_OPTS.map(([k, l]) => (
           <button type="button" key={k} className="chip" aria-pressed={more.season === k} onClick={() => setMore({ ...more, season: k })}>
