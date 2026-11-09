@@ -58,6 +58,7 @@ Quand une nouvelle version ajoute des colonnes ou des tables, un fichier appara�
 | `002_etiquettes_prix.sql` | prix ($ à $$$) et étiquettes des lieux |
 | `003_parcours.sql` | parcours à partager (tables `routes` et `route_stops`) |
 | `004_regions.sql` | région des lieux (activités hors de Montréal) |
+| `005_calendrier.sql` | calendrier des visites, visible par vous deux seulement |
 
 Une base créée directement avec la dernière version de `schema.sql` est déjà à jour.
 

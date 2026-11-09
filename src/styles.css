@@ -310,3 +310,33 @@ code{font-size:.92em;background:var(--tan-soft);padding:1px 5px;border-radius:5p
 .fx-quick span{color:var(--muted)}
 .chip-n{font-weight:700;opacity:.6;font-variant-numeric:tabular-nums}
 .chip[aria-pressed="true"] .chip-n{opacity:.85}
+
+/* Calendrier des visites */
+.mini.flip svg{transform:scaleX(-1)}
+.cal{border:1.5px solid var(--tan);background:var(--paper);border-radius:20px;padding:12px}
+.cal-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.cal-head b{font:400 24px/1 var(--f-display);color:var(--accent);text-transform:uppercase}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
+.cal-wd{text-align:center;font-size:11.5px;font-weight:700;color:var(--muted);padding:2px 0 4px}
+.cal-day{aspect-ratio:1/1.05;border:0;border-radius:12px;background:none;cursor:pointer;padding:5px 0 4px;display:flex;flex-direction:column;align-items:stretch;justify-content:space-between;color:var(--ink);min-width:0}
+.cal-day:hover{background:var(--tan-soft)}
+.cal-day.out{color:color-mix(in srgb,var(--muted) 60%,transparent)}
+.cal-n{font-weight:600;font-size:14.5px;font-variant-numeric:tabular-nums;text-align:center;width:28px;height:28px;line-height:28px;border-radius:50%;margin:0 auto}
+.cal-day.today .cal-n{border:1.5px solid var(--accent);color:var(--accent-dark);line-height:25px}
+.cal-day.sel .cal-n{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.cal-bars{display:flex;flex-direction:column;gap:2px;min-height:12px}
+.cal-bar{height:4px;margin:0 -2px}
+.cal-bar.first{margin-left:5px;border-radius:3px 0 0 3px}
+.cal-bar.last{margin-right:5px;border-radius:0 3px 3px 0}
+.cal-bar.first.last{border-radius:3px}
+.cal-sel{display:flex;flex-direction:column;gap:8px}
+.st-dates{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.stays{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.stays.past{opacity:.7}
+.stay{width:100%;display:grid;grid-template-columns:6px minmax(0,1fr) auto;gap:14px;align-items:center;text-align:left;border:1.5px solid var(--tan-soft);background:var(--paper);border-radius:16px;padding:12px 14px 12px 12px;cursor:pointer;color:var(--ink)}
+.stay > svg{color:var(--muted)}
+.stay-bar{align-self:stretch;border-radius:4px}
+.stay-body{min-width:0;display:flex;flex-direction:column}
+.stay-body b{font-size:16px}
+.stay-body small{color:var(--muted);font-size:13.5px}
+.stay-note{font-size:14px;margin-top:3px}

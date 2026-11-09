@@ -189,3 +189,25 @@ export async function deleteRoute(id) {
   const { error } = await supabase.from('routes').delete().eq('id', id);
   if (error) throw error;
 }
+
+/* ---------- Calendrier des visites (éditeurs seulement) ---------- */
+const toStay = (r) => ({ id: r.id, guests: r.guests, start: r.start_date, end: r.end_date, note: r.note || '' });
+
+/* Renvoie null si la migration 005 n'a pas encore été exécutée */
+export async function fetchStays() {
+  const { data, error } = await supabase.from('stays').select('*').order('start_date', { ascending: true });
+  if (error) { if (missingTable(error)) return null; throw error; }
+  return data.map(toStay);
+}
+
+export async function saveStay(st) {
+  const row = { guests: st.guests.trim(), start_date: st.start, end_date: st.end, note: (st.note || '').trim() };
+  const q = st.id ? supabase.from('stays').update(row).eq('id', st.id) : supabase.from('stays').insert(row);
+  const { error } = await q;
+  if (error) throw error;
+}
+
+export async function deleteStay(id) {
+  const { error } = await supabase.from('stays').delete().eq('id', id);
+  if (error) throw error;
+}

@@ -8,6 +8,8 @@ import LoginSheet from './components/LoginSheet.jsx';
 import MenuSheet from './components/MenuSheet.jsx';
 import ConverterSheet from './components/ConverterSheet.jsx';
 import { useRate } from './hooks/useRate.js';
+import CalendarSheet, { fmtStay } from './components/CalendarSheet.jsx';
+import { useStays } from './hooks/useStays.js';
 import { AddSheet, EditSheet } from './components/PlaceSheets.jsx';
 import AddressSearch from './components/AddressSearch.jsx';
 import FilterPanel, { emptyMore, countMore } from './components/FilterPanel.jsx';
@@ -18,7 +20,7 @@ import { usePlaces } from './hooks/usePlaces.js';
 import { usePosition } from './hooks/usePosition.js';
 import { distance, fmtDist } from './lib/geo.js';
 import * as api from './lib/api.js';
-import { errMsg, norm, reduceMotion, where } from './lib/utils.js';
+import { errMsg, norm, reduceMotion, today, where } from './lib/utils.js';
 
 const DEFAULT_WHO = 'deux';
 
@@ -28,6 +30,7 @@ export default function App() {
   const refresh = () => reload().catch(() => {});
   const rt = useRoutes();
   const fx = useRate();
+  const cal = useStays(auth.isEditor);
   const me = usePosition();
   const [nearby, setNearby] = useState(false);
   const placesD = useMemo(() => (me.pos ? places.map((p) => ({ ...p, dist: distance(me.pos, p) })) : places), [places, me.pos]);
@@ -283,6 +286,8 @@ export default function App() {
 
   /* ---------- Menu ---------- */
   const openList = (tab) => { setListTab(tab); setSheet({ t: 'list' }); };
+  const todayStr = today();
+  const nextStay = cal.stays.find((st) => st.end >= todayStr);
   const menuSections = [
     { title: 'Explorer', items: [
       { key: 'map', icon: I.map, label: 'La carte', sub: 'Nos adresses autour de vous', active: !sheet && !routeId, onClick: () => { setSheet(null); exitRoute(); } },
@@ -293,6 +298,8 @@ export default function App() {
       { key: 'fx', icon: I.money, label: 'Convertisseur $ CA → €', sub: fx.rate ? '1 $ CA = ' + fx.rate.toFixed(2).replace('.', ',') + ' € · taxes et pourboire' : 'Avec taxes et pourboire', active: sheet && sheet.t === 'fx', onClick: () => setSheet({ t: 'fx' }) },
     ] },
     { title: 'Nous deux', items: auth.isEditor ? [
+      { key: 'cal', icon: I.calendar, label: 'Calendrier des visites', lock: true, active: sheet && sheet.t === 'cal', onClick: () => setSheet({ t: 'cal' }),
+        sub: nextStay ? (nextStay.start <= todayStr ? 'En ce moment : ' : 'Prochaine : ') + nextStay.guests + ', ' + fmtStay(nextStay) : 'Qui vient vous voir, et quand' },
       { key: 'add', icon: I.plus, label: 'Ajouter un lieu', sub: 'À votre position ou par son adresse', lock: true, onClick: startAdd },
     ] : [] },
   ];
@@ -437,6 +444,11 @@ export default function App() {
         <RouteEditSheet key={sheet.id || 'new'} route={sheet.id ? rt.routes.find((r) => r.id === sheet.id) : null} places={places}
           onClose={() => (sheet.id ? setSheet({ t: 'route', id: sheet.id }) : (setListTab('routes'), setSheet({ t: 'list' })))}
           onSave={saveRoute} onDelete={removeRoute} />
+      )}
+      {sheet && sheet.t === 'cal' && auth.isEditor && (
+        <CalendarSheet cal={cal} toast={toast} onClose={() => setSheet(null)}
+          onSave={async (st) => { await api.saveStay(st); await cal.reload(); }}
+          onDelete={async (id) => { await api.deleteStay(id); await cal.reload(); }} />
       )}
       {sheet && sheet.t === 'fx' && <ConverterSheet fx={fx} onClose={() => setSheet(null)} />}
       {sheet && sheet.t === 'login' && <LoginSheet auth={auth} toast={toast} onClose={() => setSheet(null)} />}
